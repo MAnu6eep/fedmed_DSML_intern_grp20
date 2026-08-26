@@ -1,0 +1,1 @@
+"""fedmed.core subpackage."""
