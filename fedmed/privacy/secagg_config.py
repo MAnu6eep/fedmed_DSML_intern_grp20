@@ -1,0 +1,1 @@
+"""Configuration scaffolding for secure aggregation."""
