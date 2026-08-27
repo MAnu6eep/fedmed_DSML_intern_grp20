@@ -1,0 +1,15 @@
+node:
+  id: "hospital_b"
+  name: "St. Jude Imaging Institute"
+  port: 8082
+  grpc_port: 9092
+server:
+  host: "127.0.0.1"
+  port: 8080
+data:
+  data_dir: "hospitals/hospital_b/data"
+  batch_size: 2
+  local_epochs: 1
+privacy:
+  secagg_enabled: false
+  dp_enabled: false

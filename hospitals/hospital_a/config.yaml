@@ -1,0 +1,15 @@
+node:
+  id: "hospital_a"
+  name: "General Hospital Neurological Center"
+  port: 8081
+  grpc_port: 9091
+server:
+  host: "127.0.0.1"
+  port: 8080
+data:
+  data_dir: "hospitals/hospital_a/data"
+  batch_size: 2
+  local_epochs: 1
+privacy:
+  secagg_enabled: false
+  dp_enabled: false
