@@ -41,6 +41,7 @@ class HealthResponse(BaseModel):
     timestamp: str
     active_strategy: str
     nodes_connected: int
+    uptime_status: str
 
 
 @app.get("/api/health", response_model=HealthResponse)
@@ -51,6 +52,7 @@ def get_health_status() -> Dict[str, object]:
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "active_strategy": "FedAvg",
         "nodes_connected": 3,
+        "uptime_status": "operational",
     }
 
 
