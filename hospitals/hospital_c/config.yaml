@@ -1,0 +1,15 @@
+node:
+  id: "hospital_c"
+  name: "Metro Health Oncology Hub"
+  port: 8083
+  grpc_port: 9093
+server:
+  host: "127.0.0.1"
+  port: 8080
+data:
+  data_dir: "hospitals/hospital_c/data"
+  batch_size: 2
+  local_epochs: 1
+privacy:
+  secagg_enabled: false
+  dp_enabled: false
