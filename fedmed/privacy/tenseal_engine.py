@@ -1,6 +1,6 @@
 """TenSEAL utilities and homomorphic-encryption engine for FedMed."""
 
-from typing import Optional
+from typing import List, Optional, Tuple
 
 import tenseal as ts
 import torch
@@ -61,3 +61,45 @@ class TenSEALEngine:
         """Encrypt a PyTorch float tensor using the local secret context."""
         flat_data = tensor.detach().cpu().numpy().flatten().tolist()
         return ts.ckks_vector(self.context, flat_data)
+    def flatten_tensor(
+        self, tensor: torch.Tensor
+    ) -> Tuple[List[float], torch.Size]:
+        """Flattens a multi-dimensional PyTorch tensor and saves its original shape."""
+        shape = tensor.shape
+        flat_list = tensor.detach().cpu().flatten().tolist()
+        return flat_list, shape
+
+    def encrypt_flat_tensor(
+        self, flat_data: List[float]
+    ) -> ts.CKKSVector:
+        """Encrypts flattened float values using the local secret context."""
+        return ts.ckks_vector(self.context, flat_data)
+
+    def serialize_ciphertext(
+        self, enc_vector: ts.CKKSVector
+    ) -> bytes:
+        """Converts an encrypted CKKS vector into byte payload."""
+        return enc_vector.serialize()
+
+    def deserialize_ciphertext(
+        self,
+        enc_bytes: bytes,
+        context: Optional[ts.Context] = None,
+    ) -> ts.CKKSVector:
+        """Reconstructs CKKSVector from received byte payload."""
+        ctx = context or self.context
+        return ts.ckks_vector_from(ctx, enc_bytes)
+
+    def decrypt_vector(
+        self,
+        enc_vector: ts.CKKSVector,
+        original_shape: Optional[torch.Size] = None,
+    ) -> torch.Tensor:
+        """Decrypts CKKS vector and reshapes it to the original shape."""
+        decrypted_list = enc_vector.decrypt()
+        tensor = torch.tensor(decrypted_list, dtype=torch.float32)
+
+        if original_shape is not None:
+            tensor = tensor.view(original_shape)
+
+        return tensor
