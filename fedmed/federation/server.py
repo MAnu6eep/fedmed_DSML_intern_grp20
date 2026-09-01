@@ -11,6 +11,37 @@ import numpy as np
 import torch
 import torch.nn as nn
 
+from typing import Dict, List, Optional, Tuple
+
+import flwr as fl
+from flwr.common import (
+    Metrics,
+    NDArrays,
+    Parameters,
+    ndarrays_to_parameters,
+    parameters_to_ndarrays,
+)
+from flwr.server import ServerApp, ServerConfig
+from flwr.server.strategy import FedAvg
+
+import numpy as np
+import torch
+import torch.nn as nn
+
+
+def weighted_average_metrics(metrics: List[Tuple[int, Metrics]]) -> Metrics:
+    """Aggregates local validation metrics across hospital nodes."""
+    total_examples = sum(num_examples for num_examples, _ in metrics)
+
+    if total_examples == 0:
+        return {}
+
+    weighted_dice = sum(
+        num_examples * float(m.get("dice", 0.0))
+        for num_examples, m in metrics
+    )
+
+    return {"val_dice": weighted_dice / total_examples}
 
 def get_parameters(model: nn.Module) -> List[np.ndarray]:
     """Extract model parameters as NumPy arrays."""
@@ -36,18 +67,34 @@ def set_parameters(
 
     model.load_state_dict(state_dict, strict=True)
 
+def get_initial_parameters(model: nn.Module) -> Parameters:
+    """Extracts PyTorch model weights and converts them to Flower Parameters."""
+    ndarrays: NDArrays = [
+        val.cpu().numpy()
+        for _, val in model.state_dict().items()
+    ]
 
-def create_strategy() -> fl.server.strategy.FedAvg:
-    """Create the baseline FedAvg strategy."""
+    return ndarrays_to_parameters(ndarrays)
 
-    return fl.server.strategy.FedAvg(
-        fraction_fit=1.0,
+
+
+def create_server_strategy(
+    initial_parameters: Optional[Parameters] = None,
+    fraction_fit: float = 1.0,
+    min_fit_clients: int = 3,
+    min_available_clients: int = 3,
+) -> FedAvg:
+    """Instantiates the baseline FedAvg aggregation strategy."""
+
+    return FedAvg(
+        fraction_fit=fraction_fit,
         fraction_evaluate=1.0,
-        min_fit_clients=3,
-        min_evaluate_clients=3,
-        min_available_clients=3,
+        min_fit_clients=min_fit_clients,
+        min_evaluate_clients=min_available_clients,
+        min_available_clients=min_available_clients,
+        initial_parameters=initial_parameters,
+        evaluate_metrics_aggregation_fn=weighted_average_metrics,
     )
-
 
 def create_server_config() -> fl.server.ServerConfig:
     """Create the Flower server configuration."""
@@ -55,3 +102,14 @@ def create_server_config() -> fl.server.ServerConfig:
     return fl.server.ServerConfig(
         num_rounds=20,
     )
+
+def build_server_app(
+    strategy: Optional[fl.server.strategy.Strategy] = None,
+    num_rounds: int = 20,
+) -> ServerApp:
+    """Constructs the Flower ServerApp instance ready for execution."""
+
+    strat = strategy or create_server_strategy()
+    config = ServerConfig(num_rounds=num_rounds)
+
+    return ServerApp(strategy=strat, config=config)
