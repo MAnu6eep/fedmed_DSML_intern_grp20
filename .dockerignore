@@ -1,0 +1,13 @@
+.git
+.venv
+__pycache__
+*.pyc
+*.nii
+*.nii.gz
+*.pth
+*.pt
+data/raw/*
+!data/raw/brats/.gitkeep
+dashboard/
+node_modules/
+.DS_Store

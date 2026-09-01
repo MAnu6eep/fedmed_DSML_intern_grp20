@@ -1,0 +1,40 @@
+# Modular base image for isolated hospital nodes
+FROM python:3.10-slim
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    DEBIAN_FRONTEND=noninteractive
+
+WORKDIR /app
+
+# Install system utilities and C++ build tools required for TenSEAL/gRPC compilation
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    cmake \
+    git \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy build manifests
+COPY pyproject.toml .
+
+# Install dependencies
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir .
+
+# Copy application source
+COPY fedmed/ ./fedmed/
+COPY hospitals/ ./hospitals/
+
+# Default node argument (can be overridden: hospital_a, hospital_b, hospital_c)
+ARG HOSPITAL_ID=hospital_a
+ENV HOSPITAL_ID=${HOSPITAL_ID}
+
+EXPOSE 8080 8081 8082 8083 9091 9092 9093
+
+# Healthcheck verifying node availability
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8080/').read()" \
+    || exit 1
+
+CMD ["python", "-m", "fedmed.nodes.node_manager"]
