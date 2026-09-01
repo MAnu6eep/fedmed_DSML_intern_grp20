@@ -101,7 +101,7 @@ def main():
     avg_epoch_time = total_time / epochs
 
     logger.info("-" * 50)
-    logger.info(f"✓ Training Completed in {total_time:.2f}s (Avg {avg_epoch_time:.2f}s/epoch)")
+    logger.info(f"[OK] Training Completed in {total_time:.2f}s (Avg {avg_epoch_time:.2f}s/epoch)")
     logger.info(f"  • Final Training Loss   : {metrics['train_loss']:.4f}")
     logger.info(f"  • Final Validation Loss : {metrics['val_loss']:.4f}")
     logger.info(f"  • Final Validation Dice : {metrics['val_dice'] * 100:.2f}%")
@@ -119,7 +119,7 @@ def main():
         "out_channels": 1,
     }
     torch.save(checkpoint_data, CHECKPOINT_PATH)
-    logger.info(f"  ✓ Saved checkpoint: {CHECKPOINT_PATH.relative_to(PROJECT_ROOT)}")
+    logger.info(f"  [OK] Saved checkpoint: {CHECKPOINT_PATH.relative_to(PROJECT_ROOT)}")
 
     # Save Metrics JSON
     metrics_payload = {
@@ -137,7 +137,7 @@ def main():
 
     with open(METRICS_PATH, "w") as f:
         json.dump(metrics_payload, f, indent=2)
-    logger.info(f"  ✓ Saved metrics JSON: {METRICS_PATH.relative_to(PROJECT_ROOT)}")
+    logger.info(f"  [OK] Saved metrics JSON: {METRICS_PATH.relative_to(PROJECT_ROOT)}")
 
     logger.info("=" * 60)
     logger.info("Centralized Baseline Experiment Finished Successfully!")

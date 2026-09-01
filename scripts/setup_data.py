@@ -31,7 +31,7 @@ def generate_mock_brats_data(output_dir: Path, num_samples: int = 4):
 
         nib.save(img_nii, img_path)
         nib.save(mask_nii, mask_path)
-        print(f"  ✓ Created: {img_path.name} & {mask_path.name}")
+        print(f"  [OK] Created: {img_path.name} & {mask_path.name}")
 
 if __name__ == "__main__":
     base_raw_path = Path("data/raw/brats")
