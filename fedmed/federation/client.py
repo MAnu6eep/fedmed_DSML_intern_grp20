@@ -10,6 +10,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
+from fedmed.core.training import run_local_training
 
 
 class FedMedClient(fl.client.NumPyClient):
@@ -57,7 +58,14 @@ class FedMedClient(fl.client.NumPyClient):
 
         epochs = int(config.get("local_epochs", 1))
 
-        self.model.train()
+        training_metrics = run_local_training(
+            model=self.model,
+            train_loader=self.train_loader,
+            val_loader=self.val_loader,
+            epochs=epochs,
+            learning_rate=1e-4,
+            device=self.device,
+        )
 
         total_samples = (
             len(self.train_loader.dataset)
@@ -65,14 +73,11 @@ class FedMedClient(fl.client.NumPyClient):
             else 0
         )
 
-        running_loss = 0.0
-
-        # Local training loop placeholder.
-        # Will be connected with training.py on Day 4.
-
         metrics = {
             "client_id": self.client_id,
-            "train_loss": running_loss,
+            "train_loss": training_metrics["train_loss"],
+            "val_loss": training_metrics["val_loss"],
+            "val_dice": training_metrics["val_dice"],
             "local_epochs": epochs,
         }
 
