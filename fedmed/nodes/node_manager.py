@@ -2,6 +2,8 @@
 
 import os
 import time
+import urllib.error
+import urllib.request
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 from threading import Thread
@@ -52,6 +54,34 @@ def load_hospital_config(hospital_id: str) -> dict:
         raise ValueError(f"Invalid hospital configuration: {config_path}")
 
     return config
+
+
+def check_node_health(host: str, port: int, timeout: float = 2.0) -> bool:
+    """Check whether a hospital node health endpoint is reachable."""
+    url = f"http://{host}:{port}/"
+
+    try:
+        with urllib.request.urlopen(url, timeout=timeout) as response:
+            return response.status == 200
+    except (urllib.error.URLError, TimeoutError, OSError):
+        return False
+
+
+def verify_registered_nodes() -> dict[str, bool]:
+    """Check the health of all registered hospital nodes."""
+    results: dict[str, bool] = {}
+
+    for node in registry.list_nodes():
+        healthy = check_node_health(node.host, node.port)
+
+        registry.update_status(
+            node.id,
+            "online" if healthy else "offline",
+        )
+
+        results[node.id] = healthy
+
+    return results
 
 
 def start_node(hospital_id: str) -> HospitalNode:
