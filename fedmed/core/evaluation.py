@@ -155,6 +155,13 @@ def run_post_training_validation(
 
 
 if __name__ == "__main__":
+    import sys
+    from pathlib import Path
+
+    PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+    if str(PROJECT_ROOT) not in sys.path:
+        sys.path.insert(0, str(PROJECT_ROOT))
+
     from fedmed.core.model import get_model
 
     # Smoke test validation pipeline
@@ -172,5 +179,5 @@ if __name__ == "__main__":
     collector = RoundMetricCollector()
 
     res = run_post_training_validation(model, val_loader, round_num=1, collector=collector)
-    print("✓ Post-training validation pipeline output:", res)
-    print("✓ Metric collector summary:", collector.get_summary())
+    print("[OK] Post-training validation pipeline output:", res)
+    print("[OK] Metric collector summary:", collector.get_summary())
