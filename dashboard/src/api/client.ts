@@ -15,6 +15,7 @@ export interface HealthResponse {
   timestamp: string;
   active_strategy: string;
   nodes_connected: number;
+  uptime_status: string;
 }
 
 export interface Hospital {
