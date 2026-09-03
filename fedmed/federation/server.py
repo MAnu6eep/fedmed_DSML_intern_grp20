@@ -2,7 +2,10 @@
 
 Flower server configuration for federated model training.
 """
-
+from fedmed.privacy.secagg_config import SecAggPlusConfig
+from fedmed.privacy.secure_aggregation import (
+    SecureAggregationManager,
+)
 from collections import OrderedDict
 from typing import List
 
@@ -38,14 +41,23 @@ def set_parameters(
 
 
 def create_strategy() -> fl.server.strategy.FedAvg:
-    """Create the baseline FedAvg strategy."""
+    """Create the baseline FedAvg strategy with SecAgg+ requirements."""
+
+    secagg_config = SecAggPlusConfig(
+        num_clients=3,
+        threshold=2,
+    )
+
+    secagg_manager = SecureAggregationManager(secagg_config)
+
+    requirements = secagg_manager.get_round_requirements()
 
     return fl.server.strategy.FedAvg(
         fraction_fit=1.0,
         fraction_evaluate=1.0,
-        min_fit_clients=3,
-        min_evaluate_clients=3,
-        min_available_clients=3,
+        min_fit_clients=requirements["num_clients"],
+        min_evaluate_clients=requirements["num_clients"],
+        min_available_clients=requirements["num_clients"],
     )
 
 
