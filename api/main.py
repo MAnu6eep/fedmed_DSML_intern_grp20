@@ -7,6 +7,9 @@ live training metrics, and node orchestration.
 
 from datetime import datetime, timezone
 from typing import Dict
+import os
+import urllib.error
+import urllib.request
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -21,6 +24,40 @@ app = FastAPI(
     ),
     version="0.1.0",
 )
+
+HOSPITAL_NODES = {
+    "hospital_a": (
+        os.getenv("HOSPITAL_A_HOST", "hospital-a"),
+        int(os.getenv("HOSPITAL_A_PORT", "8080")),
+    ),
+    "hospital_b": (
+        os.getenv("HOSPITAL_B_HOST", "hospital-b"),
+        int(os.getenv("HOSPITAL_B_PORT", "8080")),
+    ),
+    "hospital_c": (
+        os.getenv("HOSPITAL_C_HOST", "hospital-c"),
+        int(os.getenv("HOSPITAL_C_PORT", "8080")),
+    ),
+}
+
+
+def check_hospital_health(host: str, port: int, timeout: float = 2.0) -> bool:
+    """Return True when a hospital health endpoint responds with HTTP 200."""
+    url = f"http://{host}:{port}/"
+
+    try:
+        with urllib.request.urlopen(url, timeout=timeout) as response:
+            return response.status == 200
+    except (urllib.error.URLError, TimeoutError, OSError):
+        return False
+
+
+def get_available_hospitals() -> dict[str, bool]:
+    """Check the current health of all configured hospital nodes."""
+    return {
+        hospital_id: check_hospital_health(host, port)
+        for hospital_id, (host, port) in HOSPITAL_NODES.items()
+    }
 
 
 # Enable CORS for React Dashboard
@@ -46,12 +83,15 @@ class HealthResponse(BaseModel):
 
 @app.get("/api/health", response_model=HealthResponse)
 def get_health_status() -> Dict[str, object]:
-    """Returns baseline system operational health and server state."""
+    """Return system health and the number of reachable hospital nodes."""
+    node_health = get_available_hospitals()
+    nodes_connected = sum(node_health.values())
+
     return {
         "status": "healthy",
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "active_strategy": "FedAvg",
-        "nodes_connected": 3,
+        "nodes_connected": nodes_connected,
         "uptime_status": "operational",
     }
 
