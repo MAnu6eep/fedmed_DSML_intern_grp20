@@ -1,50 +1,56 @@
-"""fedmed/federation/server.py
+"""
+fedmed/federation/server.py
 
-Flower server configuration for federated model training.
+Flower server configuration for federated model training
+using the FedAvg strategy.
 """
 
 from collections import OrderedDict
-from typing import List
+from typing import Dict, List, Optional, Tuple
 
 import flwr as fl
 import numpy as np
 import torch
 import torch.nn as nn
 
-from typing import Dict, List, Optional, Tuple
-
-import flwr as fl
 from flwr.common import (
     Metrics,
     NDArrays,
     Parameters,
     ndarrays_to_parameters,
-    parameters_to_ndarrays,
 )
 from flwr.server import ServerApp, ServerConfig
 from flwr.server.strategy import FedAvg
 
-import numpy as np
-import torch
-import torch.nn as nn
 
+def weighted_average_metrics(
+    metrics: List[Tuple[int, Metrics]],
+) -> Metrics:
+    """Aggregate validation Dice scores using sample counts."""
 
-def weighted_average_metrics(metrics: List[Tuple[int, Metrics]]) -> Metrics:
-    """Aggregates local validation metrics across hospital nodes."""
-    total_examples = sum(num_examples for num_examples, _ in metrics)
+    total_examples = sum(
+        num_examples
+        for num_examples, _ in metrics
+    )
 
     if total_examples == 0:
         return {}
 
     weighted_dice = sum(
-        num_examples * float(m.get("dice", 0.0))
-        for num_examples, m in metrics
+        num_examples * float(metric.get("dice", 0.0))
+        for num_examples, metric in metrics
     )
 
-    return {"val_dice": weighted_dice / total_examples}
+    return {
+        "val_dice": weighted_dice / total_examples
+    }
 
-def get_parameters(model: nn.Module) -> List[np.ndarray]:
-    """Extract model parameters as NumPy arrays."""
+
+def get_parameters(
+    model: nn.Module,
+) -> List[np.ndarray]:
+    """Extract model state as NumPy arrays."""
+
     return [
         value.detach().cpu().numpy()
         for value in model.state_dict().values()
@@ -55,8 +61,12 @@ def set_parameters(
     model: nn.Module,
     parameters: List[np.ndarray],
 ) -> None:
-    """Load NumPy parameters into the model."""
-    params_dict = zip(model.state_dict().keys(), parameters)
+    """Load NumPy parameters into a PyTorch model."""
+
+    params_dict = zip(
+        model.state_dict().keys(),
+        parameters,
+    )
 
     state_dict = OrderedDict(
         {
@@ -65,17 +75,23 @@ def set_parameters(
         }
     )
 
-    model.load_state_dict(state_dict, strict=True)
+    model.load_state_dict(
+        state_dict,
+        strict=True,
+    )
 
-def get_initial_parameters(model: nn.Module) -> Parameters:
-    """Extracts PyTorch model weights and converts them to Flower Parameters."""
-    ndarrays: NDArrays = [
-        val.cpu().numpy()
-        for _, val in model.state_dict().items()
-    ]
+
+def get_initial_parameters(
+    model: nn.Module,
+) -> Parameters:
+    """
+    Convert the initial PyTorch model parameters
+    into Flower Parameters.
+    """
+
+    ndarrays: NDArrays = get_parameters(model)
 
     return ndarrays_to_parameters(ndarrays)
-
 
 
 def create_server_strategy(
@@ -84,7 +100,7 @@ def create_server_strategy(
     min_fit_clients: int = 3,
     min_available_clients: int = 3,
 ) -> FedAvg:
-    """Instantiates the baseline FedAvg aggregation strategy."""
+    """Create the FedAvg strategy."""
 
     return FedAvg(
         fraction_fit=fraction_fit,
@@ -96,20 +112,36 @@ def create_server_strategy(
         evaluate_metrics_aggregation_fn=weighted_average_metrics,
     )
 
-def create_server_config() -> fl.server.ServerConfig:
-    """Create the Flower server configuration."""
+
+def create_server_config(
+    num_rounds: int = 20,
+) -> fl.server.ServerConfig:
+    """Create Flower server configuration."""
 
     return fl.server.ServerConfig(
-        num_rounds=20,
+        num_rounds=num_rounds,
     )
+
 
 def build_server_app(
     strategy: Optional[fl.server.strategy.Strategy] = None,
     num_rounds: int = 20,
 ) -> ServerApp:
-    """Constructs the Flower ServerApp instance ready for execution."""
+    """
+    Build the Flower ServerApp.
 
-    strat = strategy or create_server_strategy()
-    config = ServerConfig(num_rounds=num_rounds)
+    The actual model and initial parameters should be supplied
+    by the project entry point.
+    """
 
-    return ServerApp(strategy=strat, config=config)
+    if strategy is None:
+        strategy = create_server_strategy()
+
+    config = create_server_config(
+        num_rounds=num_rounds,
+    )
+
+    return ServerApp(
+        strategy=strategy,
+        config=config,
+    )
