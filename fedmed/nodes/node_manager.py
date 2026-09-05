@@ -12,6 +12,8 @@ import yaml
 
 from fedmed.nodes.registry import HospitalNode, registry
 
+from fedmed.security.grpc_tls import create_secure_grpc_server
+
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 HEALTH_HOST = "0.0.0.0"
@@ -113,13 +115,23 @@ def start_health_server() -> HTTPServer:
     thread.start()
     return server
 
+def start_grpc_server(node: HospitalNode):
+    """Start the hospital's mTLS-enabled gRPC server."""
+    grpc_server = create_secure_grpc_server(
+        port=node.grpc_port,
+        identity=node.id,
+    )
+    grpc_server.start()
+    return grpc_server
+
 
 def main() -> None:
-    """Start the baseline hospital node process."""
+    """Start the hospital node with HTTP health and secure gRPC."""
     hospital_id = os.getenv("HOSPITAL_ID", "hospital_a")
 
     node = start_node(hospital_id)
     start_health_server()
+    grpc_server = start_grpc_server(node)
 
     print(
         f"FedMed hospital node started: "
@@ -129,12 +141,15 @@ def main() -> None:
         flush=True,
     )
 
-    # Keep the container process alive without requiring interactive stdin.
     try:
         while True:
             time.sleep(3600)
     except KeyboardInterrupt:
-        print(f"FedMed hospital node stopping: {node.id}", flush=True)
+        print(
+            f"FedMed hospital node stopping: {node.id}",
+            flush=True,
+        )
+        grpc_server.stop(0)
 
 
 if __name__ == "__main__":
