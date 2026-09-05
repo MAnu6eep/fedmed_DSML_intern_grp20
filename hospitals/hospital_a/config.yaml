@@ -11,5 +11,5 @@ data:
   batch_size: 2
   local_epochs: 1
 privacy:
-  secagg_enabled: false
+  secagg_enabled: true
   dp_enabled: false

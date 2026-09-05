@@ -1,7 +1,4 @@
-"""fedmed/federation/server.py
-
-Flower server configuration for federated model training.
-"""
+"""Flower ServerApp with SecAgg+ secure aggregation."""
 
 from collections import OrderedDict
 from typing import List, Optional, Tuple
@@ -10,34 +7,48 @@ import flwr as fl
 import numpy as np
 import torch
 import torch.nn as nn
+
 from flwr.common import (
+    Context,
     Metrics,
     NDArrays,
     Parameters,
     ndarrays_to_parameters,
 )
-from flwr.server import ServerApp, ServerConfig
+from flwr.server import (
+    Grid,
+    LegacyContext,
+    ServerApp,
+    ServerConfig,
+)
 from flwr.server.strategy import FedAvg
+from flwr.server.workflow import (
+    DefaultWorkflow,
+    SecAggPlusWorkflow,
+)
 
-from fedmed.privacy.secagg_config import SecAggPlusConfig
-from fedmed.privacy.secure_aggregation import (
-    SecureAggregationManager,
+from fedmed.core.model import get_model
+from fedmed.privacy.secagg_config import (
+    SecAggPlusConfig,
 )
 
 
 def weighted_average_metrics(
     metrics: List[Tuple[int, Metrics]],
 ) -> Metrics:
-    """Aggregate local validation metrics across hospital nodes."""
+    """Aggregate local validation metrics."""
+
     total_examples = sum(
-        num_examples for num_examples, _ in metrics
+        num_examples
+        for num_examples, _ in metrics
     )
 
     if total_examples == 0:
         return {}
 
     weighted_dice = sum(
-        num_examples * float(metric.get("dice", 0.0))
+        num_examples
+        * float(metric.get("dice", 0.0))
         for num_examples, metric in metrics
     )
 
@@ -46,8 +57,11 @@ def weighted_average_metrics(
     }
 
 
-def get_parameters(model: nn.Module) -> List[np.ndarray]:
-    """Extract model parameters as NumPy arrays."""
+def get_parameters(
+    model: nn.Module,
+) -> List[np.ndarray]:
+    """Extract model parameters."""
+
     return [
         value.detach().cpu().numpy()
         for value in model.state_dict().values()
@@ -58,8 +72,12 @@ def set_parameters(
     model: nn.Module,
     parameters: List[np.ndarray],
 ) -> None:
-    """Load NumPy parameters into the model."""
-    params_dict = zip(model.state_dict().keys(), parameters)
+    """Load parameters into a model."""
+
+    params_dict = zip(
+        model.state_dict().keys(),
+        parameters,
+    )
 
     state_dict = OrderedDict(
         {
@@ -68,13 +86,17 @@ def set_parameters(
         }
     )
 
-    model.load_state_dict(state_dict, strict=True)
+    model.load_state_dict(
+        state_dict,
+        strict=True,
+    )
 
 
 def get_initial_parameters(
     model: nn.Module,
 ) -> Parameters:
-    """Convert PyTorch model weights to Flower Parameters."""
+    """Convert model parameters to Flower Parameters."""
+
     ndarrays: NDArrays = [
         value.cpu().numpy()
         for _, value in model.state_dict().items()
@@ -83,62 +105,130 @@ def get_initial_parameters(
     return ndarrays_to_parameters(ndarrays)
 
 
-def create_secagg_requirements() -> dict[str, int]:
-    """Create SecAgg+ client participation requirements."""
-    secagg_config = SecAggPlusConfig(
+def create_secagg_config() -> SecAggPlusConfig:
+    """Create the project SecAgg+ configuration."""
+
+    return SecAggPlusConfig(
         num_clients=3,
         threshold=2,
-    )
-
-    secagg_manager = SecureAggregationManager(secagg_config)
-
-    return secagg_manager.get_round_requirements()
-
-
-def create_strategy() -> FedAvg:
-    """Create the baseline FedAvg strategy with SecAgg+ requirements."""
-    requirements = create_secagg_requirements()
-
-    return create_server_strategy(
-        min_fit_clients=requirements["num_clients"],
-        min_available_clients=requirements["num_clients"],
+        modulus_range=2**31,
+        clipping_bound=10.0,
+        quantization_bits=16,
+        enable_dropouts=True,
     )
 
 
-def create_server_strategy(
+def create_secagg_workflow() -> SecAggPlusWorkflow:
+    """Create Flower SecAgg+ workflow."""
+
+    config = create_secagg_config()
+
+    return SecAggPlusWorkflow(
+        num_shares=config.num_clients,
+        reconstruction_threshold=config.threshold,
+        clipping_range=config.clipping_bound,
+        modulus_range=config.modulus_range,
+        quantization_range=2**config.quantization_bits,
+    )
+
+
+def create_strategy(
     initial_parameters: Optional[Parameters] = None,
-    fraction_fit: float = 1.0,
-    min_fit_clients: int = 3,
-    min_available_clients: int = 3,
 ) -> FedAvg:
-    """Instantiate the baseline FedAvg aggregation strategy."""
+    """Create FedAvg strategy used by SecAgg+."""
+
+    config = create_secagg_config()
+
     return FedAvg(
-        fraction_fit=fraction_fit,
+        fraction_fit=1.0,
         fraction_evaluate=1.0,
-        min_fit_clients=min_fit_clients,
-        min_evaluate_clients=min_available_clients,
-        min_available_clients=min_available_clients,
+        min_fit_clients=config.num_clients,
+        min_evaluate_clients=config.num_clients,
+        min_available_clients=config.num_clients,
         initial_parameters=initial_parameters,
-        evaluate_metrics_aggregation_fn=weighted_average_metrics,
+        evaluate_metrics_aggregation_fn=(
+            weighted_average_metrics
+        ),
     )
 
 
-def create_server_config() -> fl.server.ServerConfig:
-    """Create the Flower server configuration."""
-    return fl.server.ServerConfig(
-        num_rounds=20,
+app = ServerApp()
+
+
+@app.main()
+def main(
+    grid: Grid,
+    context: Context,
+) -> None:
+    """Run federated learning with SecAgg+."""
+
+    secagg_config = create_secagg_config()
+
+    # Create initial global model.
+    model = get_model(
+        in_channels=4,
+        out_channels=1,
     )
 
+    initial_parameters = get_initial_parameters(
+        model
+    )
 
-def build_server_app(
-    strategy: Optional[fl.server.strategy.Strategy] = None,
-    num_rounds: int = 20,
-) -> ServerApp:
-    """Construct the Flower ServerApp instance ready for execution."""
-    strat = strategy or create_strategy()
-    config = ServerConfig(num_rounds=num_rounds)
+    strategy = create_strategy(
+        initial_parameters=initial_parameters
+    )
 
-    return ServerApp(
-        strategy=strat,
-        config=config,
+    num_rounds = int(
+        context.run_config.get(
+            "num-server-rounds",
+            2,
+        )
+    )
+
+    # SecAgg+ is implemented as a workflow
+    # around the existing FedAvg strategy.
+    legacy_context = LegacyContext(
+        context=context,
+        config=ServerConfig(
+            num_rounds=num_rounds
+        ),
+        strategy=strategy,
+    )
+
+    workflow = DefaultWorkflow(
+        fit_workflow=create_secagg_workflow()
+    )
+
+    print(
+        "\n===== FedMed SecAgg+ Configuration ====="
+    )
+    print(
+        f"Clients: {secagg_config.num_clients}"
+    )
+    print(
+        f"Threshold: {secagg_config.threshold}"
+    )
+    print(
+        f"Clipping bound: "
+        f"{secagg_config.clipping_bound}"
+    )
+    print(
+        f"Quantization bits: "
+        f"{secagg_config.quantization_bits}"
+    )
+    print(
+        f"Dropout recovery: "
+        f"{secagg_config.enable_dropouts}"
+    )
+    print(
+        f"Federated rounds: {num_rounds}"
+    )
+    print(
+        "========================================\n"
+    )
+
+    # THIS actually executes SecAgg+.
+    workflow(
+        grid,
+        legacy_context,
     )

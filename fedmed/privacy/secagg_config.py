@@ -26,7 +26,7 @@ class SecAggPlusConfig(BaseModel):
     )
 
     modulus_range: int = Field(
-        default=2**32,
+        default=2**31,
         description="Quantization modulus range for secure masking.",
     )
 
