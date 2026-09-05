@@ -8,6 +8,7 @@ using the FedAvg strategy.
 from collections import OrderedDict
 from typing import Dict, List, Optional, Tuple
 
+
 import flwr as fl
 import numpy as np
 import torch
@@ -23,14 +24,24 @@ from flwr.server import ServerApp, ServerConfig
 from flwr.server.strategy import FedAvg
 
 
+from fedmed.privacy.secagg_config import SecAggPlusConfig
+from fedmed.privacy.secure_aggregation import (
+    SecureAggregationManager,
+)
+
 def weighted_average_metrics(
     metrics: List[Tuple[int, Metrics]],
 ) -> Metrics:
     """Aggregate validation Dice scores using sample counts."""
 
+
+def weighted_average_metrics(
+    metrics: List[Tuple[int, Metrics]],
+) -> Metrics:
+    """Aggregate local validation metrics across hospital nodes."""
     total_examples = sum(
-        num_examples
-        for num_examples, _ in metrics
+        num_examples for num_examples, _ in metrics
+
     )
 
     if total_examples == 0:
@@ -50,6 +61,9 @@ def get_parameters(
     model: nn.Module,
 ) -> List[np.ndarray]:
     """Extract model state as NumPy arrays."""
+        "val_dice": weighted_dice / total_examples,
+    }
+
 
     return [
         value.detach().cpu().numpy()
@@ -84,6 +98,15 @@ def set_parameters(
 def get_initial_parameters(
     model: nn.Module,
 ) -> Parameters:
+    """Convert PyTorch model weights to Flower Parameters."""
+    ndarrays: NDArrays = [
+        value.cpu().numpy()
+        for _, value in model.state_dict().items()
+    ]
+
+def get_initial_parameters(
+    model: nn.Module,
+) -> Parameters:
     """
     Convert the initial PyTorch model parameters
     into Flower Parameters.
@@ -92,6 +115,27 @@ def get_initial_parameters(
     ndarrays: NDArrays = get_parameters(model)
 
     return ndarrays_to_parameters(ndarrays)
+
+def create_secagg_requirements() -> dict[str, int]:
+    """Create SecAgg+ client participation requirements."""
+    secagg_config = SecAggPlusConfig(
+        num_clients=3,
+        threshold=2,
+    )
+
+    secagg_manager = SecureAggregationManager(secagg_config)
+
+    return secagg_manager.get_round_requirements()
+
+
+def create_strategy() -> FedAvg:
+    """Create the baseline FedAvg strategy with SecAgg+ requirements."""
+    requirements = create_secagg_requirements()
+
+    return create_server_strategy(
+        min_fit_clients=requirements["num_clients"],
+        min_available_clients=requirements["num_clients"],
+    )
 
 
 def create_server_strategy(
@@ -102,6 +146,7 @@ def create_server_strategy(
 ) -> FedAvg:
     """Create the FedAvg strategy."""
 
+    """Instantiate the baseline FedAvg aggregation strategy."""
     return FedAvg(
         fraction_fit=fraction_fit,
         fraction_evaluate=1.0,
@@ -118,6 +163,8 @@ def create_server_config(
 ) -> fl.server.ServerConfig:
     """Create Flower server configuration."""
 
+def create_server_config() -> fl.server.ServerConfig:
+    """Create the Flower server configuration."""
     return fl.server.ServerConfig(
         num_rounds=num_rounds,
     )
@@ -143,5 +190,11 @@ def build_server_app(
 
     return ServerApp(
         strategy=strategy,
+    """Construct the Flower ServerApp instance ready for execution."""
+    strat = strategy or create_strategy()
+    config = ServerConfig(num_rounds=num_rounds)
+
+    return ServerApp(
+        strategy=strat,
         config=config,
     )

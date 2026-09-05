@@ -3,16 +3,51 @@ import { Sidebar } from "./components/Sidebar";
 import { Header } from "./components/Header";
 import { HospitalNodeCard } from "./components/HospitalNodeCard";
 import { useHospitalStore } from "./store/hospitalStore";
+import { TelemetryClient } from "./api/telemetry";
+import { useTelemetryStore } from "./store/telemetryStore";
 
 export const App: React.FC = () => {
+  // Hospital state
   const hospitals = useHospitalStore((state) => state.hospitals);
   const fetchHospitals = useHospitalStore(
     (state) => state.fetchHospitals
   );
 
+  // Telemetry state
+  const addEvent = useTelemetryStore((state) => state.addEvent);
+  const setConnected = useTelemetryStore(
+    (state) => state.setConnected
+  );
+
+  // Fetch hospital data from FastAPI
   useEffect(() => {
     fetchHospitals();
   }, [fetchHospitals]);
+
+  // Connect to real-time telemetry WebSocket
+  useEffect(() => {
+    const telemetryClient = new TelemetryClient();
+
+    telemetryClient.connect(
+      (event) => {
+        console.log("Telemetry event:", event);
+        addEvent(event);
+      },
+      () => {
+        console.log("FedMed telemetry WebSocket connected");
+        setConnected(true);
+      },
+      () => {
+        console.log("FedMed telemetry WebSocket error");
+        setConnected(false);
+      }
+    );
+
+    return () => {
+      telemetryClient.disconnect();
+      setConnected(false);
+    };
+  }, [addEvent, setConnected]);
 
   return (
     <div className="flex min-h-screen bg-slate-950 text-slate-100">
