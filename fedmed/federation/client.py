@@ -1,15 +1,19 @@
-"""fedmed/federation/client.py
-Flower NumPyClient implementation for local hospital node model training and evaluation.
+"""
+fedmed/federation/client.py
+
+Flower NumPyClient implementation for a local hospital node.
+Each client trains the model on its own local data partition.
 """
 
 from collections import OrderedDict
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Union
 
 import flwr as fl
 import numpy as np
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
+
 from fedmed.core.training import run_local_training
 
 
@@ -30,34 +34,61 @@ class FedMedClient(fl.client.NumPyClient):
         self.val_loader = val_loader
         self.device = device
 
-    def get_parameters(self, config: Dict[str, str]) -> List[np.ndarray]:
-        """Extracts model weights as a list of NumPy ndarrays."""
+    def get_parameters(
+        self,
+        config: Dict[str, Union[bool, bytes, float, int, str]],
+    ) -> List[np.ndarray]:
+        """Return the current model parameters as NumPy arrays."""
+
         return [
-            val.cpu().numpy()
-            for _, val in self.model.state_dict().items()
+            value.detach().cpu().numpy()
+            for value in self.model.state_dict().values()
         ]
 
-    def set_parameters(self, parameters: List[np.ndarray]) -> None:
-        """Loads updated global parameters into local model state."""
-        params_dict = zip(self.model.state_dict().keys(), parameters)
+    def set_parameters(
+        self,
+        parameters: List[np.ndarray],
+    ) -> None:
+        """Load global parameters into the local model."""
 
-        state_dict = OrderedDict(
-            {k: torch.tensor(v) for k, v in params_dict}
+        params_dict = zip(
+            self.model.state_dict().keys(),
+            parameters,
         )
 
-        self.model.load_state_dict(state_dict, strict=True)
+        state_dict = OrderedDict(
+            {
+                key: torch.tensor(value)
+                for key, value in params_dict
+            }
+        )
+
+        self.model.load_state_dict(
+            state_dict,
+            strict=True,
+        )
 
     def fit(
         self,
         parameters: List[np.ndarray],
-        config: Dict[str, str],
-    ) -> Tuple[List[np.ndarray], int, Dict[str, float]]:
-        """Trains local model on hospital data partition."""
+        config: Dict[str, Union[bool, bytes, float, int, str]],
+    ) -> Tuple[
+        List[np.ndarray],
+        int,
+        Dict[str, Union[bool, bytes, float, int, str]],
+    ]:
+        """
+        Receive global parameters, train locally,
+        and return updated parameters.
+        """
 
+        # Load the global model received from the server
         self.set_parameters(parameters)
 
+        # Read number of local epochs
         epochs = int(config.get("local_epochs", 1))
 
+        # Train on this hospital's local data
         training_metrics = run_local_training(
             model=self.model,
             train_loader=self.train_loader,
@@ -67,42 +98,59 @@ class FedMedClient(fl.client.NumPyClient):
             device=self.device,
         )
 
-        total_samples = (
-            len(self.train_loader.dataset)
-            if self.train_loader.dataset
-            else 0
-        )
+        # Number of local training examples
+        total_samples = len(self.train_loader.dataset)
 
         metrics = {
             "client_id": self.client_id,
-            "train_loss": training_metrics["train_loss"],
-            "val_loss": training_metrics["val_loss"],
-            "val_dice": training_metrics["val_dice"],
+            "train_loss": float(training_metrics["train_loss"]),
+            "val_loss": float(training_metrics["val_loss"]),
+            "val_dice": float(training_metrics["val_dice"]),
             "local_epochs": epochs,
         }
 
-        return self.get_parameters(config={}), total_samples, metrics
+        # Send updated local model back to server
+        return (
+            self.get_parameters(config={}),
+            total_samples,
+            metrics,
+        )
 
     def evaluate(
         self,
         parameters: List[np.ndarray],
-        config: Dict[str, str],
-    ) -> Tuple[float, int, Dict[str, float]]:
-        """Evaluates local model on hospital validation partition."""
+        config: Dict[str, Union[bool, bytes, float, int, str]],
+    ) -> Tuple[
+        float,
+        int,
+        Dict[str, Union[bool, bytes, float, int, str]],
+    ]:
+        """
+        Evaluate the received global model on the local
+        hospital validation dataset.
 
+        NOTE:
+        The actual validation calculation will be connected
+        once the project's evaluation/loss function is finalized.
+        """
+
+        # Load global parameters
         self.set_parameters(parameters)
 
+        # Evaluation mode
         self.model.eval()
 
-        total_samples = (
-            len(self.val_loader.dataset)
-            if self.val_loader.dataset
-            else 0
-        )
+        total_samples = len(self.val_loader.dataset)
 
+        # Temporary values until the project's evaluation
+        # function is connected here.
         loss = 0.0
         dice_score = 0.0
 
-        return float(loss), total_samples, {
-            "dice": float(dice_score)
-        }
+        return (
+            float(loss),
+            total_samples,
+            {
+                "dice": float(dice_score),
+            },
+        )
