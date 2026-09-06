@@ -39,7 +39,6 @@ class FedMedClient(fl.client.NumPyClient):
         config: Dict[str, Union[bool, bytes, float, int, str]],
     ) -> List[np.ndarray]:
         """Return the current model parameters as NumPy arrays."""
-
         return [
             value.detach().cpu().numpy()
             for value in self.model.state_dict().values()
@@ -50,7 +49,6 @@ class FedMedClient(fl.client.NumPyClient):
         parameters: List[np.ndarray],
     ) -> None:
         """Load global parameters into the local model."""
-
         params_dict = zip(
             self.model.state_dict().keys(),
             parameters,
@@ -81,14 +79,13 @@ class FedMedClient(fl.client.NumPyClient):
         Receive global parameters, train locally,
         and return updated parameters.
         """
-
-        # Load the global model received from the server
+        # Load the global model received from the server.
         self.set_parameters(parameters)
 
-        # Read number of local epochs
+        # Read the configured number of local epochs.
         epochs = int(config.get("local_epochs", 1))
 
-        # Train on this hospital's local data
+        # Train on this hospital's local data.
         training_metrics = run_local_training(
             model=self.model,
             train_loader=self.train_loader,
@@ -98,7 +95,7 @@ class FedMedClient(fl.client.NumPyClient):
             device=self.device,
         )
 
-        # Number of local training examples
+        # Number of local training examples.
         total_samples = len(self.train_loader.dataset)
 
         metrics = {
@@ -109,7 +106,7 @@ class FedMedClient(fl.client.NumPyClient):
             "local_epochs": epochs,
         }
 
-        # Send updated local model back to server
+        # Send updated local model back to the server.
         return (
             self.get_parameters(config={}),
             total_samples,
@@ -133,17 +130,17 @@ class FedMedClient(fl.client.NumPyClient):
         The actual validation calculation will be connected
         once the project's evaluation/loss function is finalized.
         """
-
-        # Load global parameters
+        # Load global parameters.
         self.set_parameters(parameters)
 
-        # Evaluation mode
+        # Evaluation mode.
         self.model.eval()
 
+        # Number of local validation examples.
         total_samples = len(self.val_loader.dataset)
 
         # Temporary values until the project's evaluation
-        # function is connected here.
+        # function is connected.
         loss = 0.0
         dice_score = 0.0
 
