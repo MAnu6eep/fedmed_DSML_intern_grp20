@@ -1,31 +1,33 @@
-"""Day 6: Three-client, one-round Flower FedAvg simulation test."""
-
-from collections import OrderedDict
+"""
+Multi-round, three-client Flower FedAvg simulation test.
+"""
 
 import flwr as fl
-import numpy as np
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader, TensorDataset
+from flwr.common import parameters_to_ndarrays
 
-from fedmed.core.training import run_local_training
 from fedmed.federation.client import FedMedClient
-from fedmed.federation.server import create_server_strategy
 
 
 class MockSegmentationModel(nn.Module):
-    """Small 3D model used only for the federated simulation test."""
+    """Small 3D model used for the federated simulation test."""
 
     def __init__(self):
         super().__init__()
-        self.conv = nn.Conv3d(1, 1, kernel_size=1)
+        self.conv = nn.Conv3d(
+            in_channels=1,
+            out_channels=1,
+            kernel_size=1,
+        )
 
     def forward(self, x):
         return self.conv(x)
 
 
 class RecordingFedAvg(fl.server.strategy.FedAvg):
-    """FedAvg strategy that records round-level participation and metrics."""
+    """FedAvg strategy that records each round."""
 
     def __init__(self):
         super().__init__(
@@ -35,19 +37,30 @@ class RecordingFedAvg(fl.server.strategy.FedAvg):
             min_evaluate_clients=3,
             min_available_clients=3,
         )
-        self.fit_clients = []
-        self.round_metrics = {}
 
-    def aggregate_fit(self, server_round, results, failures):
-        self.fit_clients = [
-            client_proxy.cid for client_proxy, _ in results
-        ]
+        self.round_metrics = {}
+        self.global_parameters = {}
+
+    def aggregate_fit(
+        self,
+        server_round,
+        results,
+        failures,
+    ):
+        """Aggregate updates and record the global model."""
 
         aggregated = super().aggregate_fit(
             server_round,
             results,
             failures,
         )
+
+        parameters, _ = aggregated
+
+        if parameters is not None:
+            self.global_parameters[server_round] = (
+                parameters_to_ndarrays(parameters)
+            )
 
         self.round_metrics[server_round] = {
             "participants": len(results),
@@ -64,36 +77,50 @@ class RecordingFedAvg(fl.server.strategy.FedAvg):
 
 
 def make_mock_dataloader(client_index):
-    """Create deterministic mock tensors for one hospital."""
+    """Create deterministic mock data for one hospital."""
+
     torch.manual_seed(100 + client_index)
 
-    images = torch.randn(2, 1, 4, 4, 4)
+    images = torch.randn(
+        2,
+        1,
+        4,
+        4,
+        4,
+    )
+
     labels = torch.sigmoid(images * 0.5)
 
-    dataset = TensorDataset(images, labels)
+    base_dataset = TensorDataset(
+        images,
+        labels,
+    )
 
-    # Convert TensorDataset output into the dictionary format expected
-    # by fedmed/core/training.py.
     class DictDataset(torch.utils.data.Dataset):
-        def __init__(self, base_dataset):
-            self.base_dataset = base_dataset
+        def __init__(self, dataset):
+            self.dataset = dataset
 
         def __len__(self):
-            return len(self.base_dataset)
+            return len(self.dataset)
 
         def __getitem__(self, index):
-            image, label = self.base_dataset[index]
-            return {"image": image, "label": label}
+            image, label = self.dataset[index]
+
+            return {
+                "image": image,
+                "label": label,
+            }
 
     return DataLoader(
-        DictDataset(dataset),
+        DictDataset(base_dataset),
         batch_size=1,
         shuffle=False,
     )
 
 
 def client_fn(context):
-    """Create one isolated mock hospital client."""
+    """Create one isolated hospital client."""
+
     client_index = int(context.node_id)
 
     model = MockSegmentationModel()
@@ -112,17 +139,21 @@ def client_fn(context):
     return client.to_client()
 
 
-def test_three_client_one_round_fedavg():
-    """Verify one complete three-client Flower FedAvg round."""
+def test_three_client_multi_round_fedavg():
+    """Verify multi-round FedAvg across three hospital clients."""
 
     strategy = RecordingFedAvg()
 
     server_app = fl.server.ServerApp(
         strategy=strategy,
-        config=fl.server.ServerConfig(num_rounds=1),
+        config=fl.server.ServerConfig(
+            num_rounds=3,
+        ),
     )
 
-    client_app = fl.client.ClientApp(client_fn=client_fn)
+    client_app = fl.client.ClientApp(
+        client_fn=client_fn
+    )
 
     fl.simulation.run_simulation(
         server_app=server_app,
@@ -136,11 +167,47 @@ def test_three_client_one_round_fedavg():
         },
     )
 
-    assert 1 in strategy.round_metrics
-    assert strategy.round_metrics[1]["participants"] == 3
-    assert strategy.round_metrics[1]["failures"] == 0
+    # Verify all three rounds completed.
+    assert set(strategy.round_metrics.keys()) == {1, 2, 3}
 
-    assert len(strategy.fit_clients) == 3
+    # Verify all three hospitals participated every round.
+    for round_number in range(1, 4):
+        assert (
+            strategy.round_metrics[round_number]["participants"]
+            == 3
+        )
 
-    print("3-client, 1-round FedAvg simulation PASSED")
-    print(f"Participating clients: {strategy.fit_clients}")
+        assert (
+            strategy.round_metrics[round_number]["failures"]
+            == 0
+        )
+
+    # Verify global parameters were produced every round.
+    assert set(strategy.global_parameters.keys()) == {1, 2, 3}
+
+    # Get global parameters from consecutive rounds.
+    round_1 = strategy.global_parameters[1]
+    round_2 = strategy.global_parameters[2]
+    round_3 = strategy.global_parameters[3]
+
+    # Verify the global model changed after round 1.
+    assert any(
+        not torch.equal(
+            torch.tensor(param_1),
+            torch.tensor(param_2),
+        )
+        for param_1, param_2 in zip(round_1, round_2)
+    )
+
+    # Verify the global model changed after round 2.
+    assert any(
+        not torch.equal(
+            torch.tensor(param_2),
+            torch.tensor(param_3),
+        )
+        for param_2, param_3 in zip(round_2, round_3)
+    )
+
+    print(
+        "\n3-client, 3-round FedAvg simulation PASSED"
+    )

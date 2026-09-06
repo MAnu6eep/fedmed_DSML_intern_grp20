@@ -1,12 +1,13 @@
 """fedmed/core/evaluation.py
 
-Local model validation engine, round-level metric collection, and 3D segmentation evaluation.
-Computes Dice Similarity Coefficient and Intersection over Union (IoU) metrics.
+Local model validation engine, sliding-window inference, round-level metric collection,
+and 3D MRI segmentation evaluation (Dice & IoU).
 """
 
 from typing import Dict, List, Optional, Tuple
 import torch
 import torch.nn as nn
+from monai.inferers import sliding_window_inference
 from monai.losses import DiceFocalLoss
 from monai.metrics import DiceMetric, MeanIoU
 from torch.utils.data import DataLoader
@@ -56,20 +57,26 @@ class RoundMetricCollector:
         }
 
 
-def evaluate_model_metrics(
+def evaluate_sliding_window(
     model: nn.Module,
     dataloader: DataLoader,
+    roi_size: Tuple[int, int, int] = (64, 64, 32),
+    sw_batch_size: int = 2,
+    overlap: float = 0.25,
     loss_fn: Optional[nn.Module] = None,
     device: torch.device = torch.device("cpu"),
 ) -> Dict[str, float]:
-    """Runs validation evaluation over 3D MRI volumes and computes Dice and IoU metrics.
-    
+    """Evaluates 3D U-Net over volumetric MRI scans using sliding-window inference.
+
     Args:
         model: 3D U-Net PyTorch model
-        dataloader: Validation data loader with MONAI dictionary transforms
+        dataloader: Validation dataloader supplying MONAI dictionary batches
+        roi_size: Spatial ROI patch size for sliding window (H, W, D)
+        sw_batch_size: Number of sliding window patches processed per step
+        overlap: Amount of overlap between consecutive sliding window patches
         loss_fn: Optional loss function (defaults to DiceFocalLoss)
-        device: PyTorch device (CPU or CUDA)
-        
+        device: Execution device (CPU or CUDA)
+
     Returns:
         Dictionary containing 'val_loss', 'dice', 'iou', and 'num_samples'.
     """
@@ -95,14 +102,22 @@ def evaluate_model_metrics(
             labels = batch["label"].to(device)
             total_samples += images.size(0)
 
-            outputs = model(images)
+            # Process large 3D volume using sliding-window inference and reconstruct complete prediction
+            outputs = sliding_window_inference(
+                inputs=images,
+                roi_size=roi_size,
+                sw_batch_size=sw_batch_size,
+                predictor=model,
+                overlap=overlap,
+            )
+
             loss = loss_fn(outputs, labels)
             running_loss += loss.item()
 
-            # Binarize predictions using sigmoid thresholding (> 0.5)
+            # Binarize prediction for segmentation metric scoring (sigmoid > 0.5)
             preds = (torch.sigmoid(outputs) > 0.5).float()
 
-            # Update MONAI metrics
+            # Accumulate Dice and IoU metrics
             dice_metric(y_pred=preds, y=labels)
             iou_metric(y_pred=preds, y=labels)
 
@@ -121,26 +136,36 @@ def evaluate_model_metrics(
     }
 
 
+def evaluate_model_metrics(
+    model: nn.Module,
+    dataloader: DataLoader,
+    loss_fn: Optional[nn.Module] = None,
+    device: torch.device = torch.device("cpu"),
+) -> Dict[str, float]:
+    """Standard evaluation wrapper calling sliding-window inference."""
+    return evaluate_sliding_window(
+        model=model,
+        dataloader=dataloader,
+        loss_fn=loss_fn,
+        device=device,
+    )
+
+
 def run_post_training_validation(
     model: nn.Module,
     val_loader: DataLoader,
     round_num: int = 1,
     collector: Optional[RoundMetricCollector] = None,
+    roi_size: Tuple[int, int, int] = (64, 64, 32),
     device: torch.device = torch.device("cpu"),
 ) -> Dict[str, float]:
-    """Separate post-training validation pipeline executed after local training rounds.
-    
-    Args:
-        model: Trained 3D U-Net model
-        val_loader: MONAI validation dataloader
-        round_num: Current FL round index
-        collector: Optional RoundMetricCollector instance
-        device: Execution device
-        
-    Returns:
-        Structured round metrics dictionary.
-    """
-    metrics = evaluate_model_metrics(model, val_loader, device=device)
+    """Runs post-training sliding-window validation and records round metrics."""
+    metrics = evaluate_sliding_window(
+        model=model,
+        dataloader=val_loader,
+        roi_size=roi_size,
+        device=device,
+    )
 
     if collector is not None:
         collector.record_round(
@@ -164,20 +189,28 @@ if __name__ == "__main__":
 
     from fedmed.core.model import get_model
 
-    # Smoke test validation pipeline
-    class MockValDataset(torch.utils.data.Dataset):
+    # Smoke test sliding-window evaluation over mock 3D MRI volume
+    class Mock3DMRIBatch(torch.utils.data.Dataset):
         def __len__(self):
             return 2
         def __getitem__(self, idx):
             return {
-                "image": torch.randn(4, 32, 32, 16),
-                "label": torch.randint(0, 2, (1, 32, 32, 16)).float()
+                "image": torch.randn(4, 64, 64, 32),
+                "label": torch.randint(0, 2, (1, 64, 64, 32)).float(),
             }
 
     model = get_model()
-    val_loader = DataLoader(MockValDataset(), batch_size=2)
+    val_loader = DataLoader(Mock3DMRIBatch(), batch_size=1)
     collector = RoundMetricCollector()
 
-    res = run_post_training_validation(model, val_loader, round_num=1, collector=collector)
-    print("[OK] Post-training validation pipeline output:", res)
-    print("[OK] Metric collector summary:", collector.get_summary())
+    res = evaluate_sliding_window(model, val_loader, roi_size=(32, 32, 16))
+    collector.record_round(
+        round_num=1,
+        val_loss=res["val_loss"],
+        dice_score=res["dice"],
+        iou_score=res["iou"],
+        num_samples=res["num_samples"],
+    )
+
+    print("[OK] Sliding-window evaluation output:", res)
+    print("[OK] Round Metric Collector summary:", collector.get_summary())

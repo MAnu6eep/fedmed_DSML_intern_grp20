@@ -29,3 +29,13 @@ hospitals/*/data/*
 node_modules/
 dashboard/dist/
 .DS_Store
+
+# FedMed TLS certificates and private keys
+certs/**/*.key
+certs/**/*.pem
+
+# FedMed certificate authority state
+*.srl
+
+# FedMed generated certificate signing requests
+*.csr
