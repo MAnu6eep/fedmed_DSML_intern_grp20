@@ -30,11 +30,14 @@ services:
       HOSPITAL_ID: hospital_a
     ports:
       - "8081:8080"
+      - "9091:9091"
+    volumes:
+      - ./certs/ca/ca.crt:/app/certs/ca/ca.crt:ro
+      - ./certs/hospital_a:/app/certs/hospital_a:ro
     networks:
       - fedmed-network
     depends_on:
-      fedmed-server:
-        condition: service_healthy
+      - fedmed-server
 
   hospital-b:
     image: fedmed_dsml_intern_grp20-hospital-a:latest
@@ -42,11 +45,14 @@ services:
       HOSPITAL_ID: hospital_b
     ports:
       - "8082:8080"
+      - "9092:9092"
+    volumes:
+      - ./certs/ca/ca.crt:/app/certs/ca/ca.crt:ro
+      - ./certs/hospital_b:/app/certs/hospital_b:ro
     networks:
       - fedmed-network
     depends_on:
-      fedmed-server:
-        condition: service_healthy
+      - fedmed-server
 
   hospital-c:
     image: fedmed_dsml_intern_grp20-hospital-a:latest
@@ -54,11 +60,14 @@ services:
       HOSPITAL_ID: hospital_c
     ports:
       - "8083:8080"
+      - "9093:9093"
+    volumes:
+      - ./certs/ca/ca.crt:/app/certs/ca/ca.crt:ro
+      - ./certs/hospital_c:/app/certs/hospital_c:ro
     networks:
       - fedmed-network
     depends_on:
-      fedmed-server:
-        condition: service_healthy
+      - fedmed-server
 
 networks:
   fedmed-network:

@@ -6,8 +6,7 @@ using the FedAvg strategy.
 """
 
 from collections import OrderedDict
-from typing import Dict, List, Optional, Tuple
-
+from typing import List, Optional, Tuple
 
 import flwr as fl
 import numpy as np
@@ -23,16 +22,10 @@ from flwr.common import (
 from flwr.server import ServerApp, ServerConfig
 from flwr.server.strategy import FedAvg
 
-
 from fedmed.privacy.secagg_config import SecAggPlusConfig
 from fedmed.privacy.secure_aggregation import (
     SecureAggregationManager,
 )
-
-def weighted_average_metrics(
-    metrics: List[Tuple[int, Metrics]],
-) -> Metrics:
-    """Aggregate validation Dice scores using sample counts."""
 
 
 def weighted_average_metrics(
@@ -41,7 +34,6 @@ def weighted_average_metrics(
     """Aggregate local validation metrics across hospital nodes."""
     total_examples = sum(
         num_examples for num_examples, _ in metrics
-
     )
 
     if total_examples == 0:
@@ -53,7 +45,7 @@ def weighted_average_metrics(
     )
 
     return {
-        "val_dice": weighted_dice / total_examples
+        "val_dice": weighted_dice / total_examples,
     }
 
 
@@ -61,10 +53,6 @@ def get_parameters(
     model: nn.Module,
 ) -> List[np.ndarray]:
     """Extract model state as NumPy arrays."""
-        "val_dice": weighted_dice / total_examples,
-    }
-
-
     return [
         value.detach().cpu().numpy()
         for value in model.state_dict().values()
@@ -76,7 +64,6 @@ def set_parameters(
     parameters: List[np.ndarray],
 ) -> None:
     """Load NumPy parameters into a PyTorch model."""
-
     params_dict = zip(
         model.state_dict().keys(),
         parameters,
@@ -98,23 +85,14 @@ def set_parameters(
 def get_initial_parameters(
     model: nn.Module,
 ) -> Parameters:
-    """Convert PyTorch model weights to Flower Parameters."""
-    ndarrays: NDArrays = [
-        value.cpu().numpy()
-        for _, value in model.state_dict().items()
-    ]
-
-def get_initial_parameters(
-    model: nn.Module,
-) -> Parameters:
     """
     Convert the initial PyTorch model parameters
     into Flower Parameters.
     """
-
     ndarrays: NDArrays = get_parameters(model)
 
     return ndarrays_to_parameters(ndarrays)
+
 
 def create_secagg_requirements() -> dict[str, int]:
     """Create SecAgg+ client participation requirements."""
@@ -123,7 +101,9 @@ def create_secagg_requirements() -> dict[str, int]:
         threshold=2,
     )
 
-    secagg_manager = SecureAggregationManager(secagg_config)
+    secagg_manager = SecureAggregationManager(
+        secagg_config,
+    )
 
     return secagg_manager.get_round_requirements()
 
@@ -145,8 +125,6 @@ def create_server_strategy(
     min_available_clients: int = 3,
 ) -> FedAvg:
     """Create the FedAvg strategy."""
-
-    """Instantiate the baseline FedAvg aggregation strategy."""
     return FedAvg(
         fraction_fit=fraction_fit,
         fraction_evaluate=1.0,
@@ -161,9 +139,6 @@ def create_server_strategy(
 def create_server_config(
     num_rounds: int = 20,
 ) -> fl.server.ServerConfig:
-    """Create Flower server configuration."""
-
-def create_server_config() -> fl.server.ServerConfig:
     """Create the Flower server configuration."""
     return fl.server.ServerConfig(
         num_rounds=num_rounds,
@@ -180,7 +155,6 @@ def build_server_app(
     The actual model and initial parameters should be supplied
     by the project entry point.
     """
-
     if strategy is None:
         strategy = create_server_strategy()
 
@@ -190,11 +164,5 @@ def build_server_app(
 
     return ServerApp(
         strategy=strategy,
-    """Construct the Flower ServerApp instance ready for execution."""
-    strat = strategy or create_strategy()
-    config = ServerConfig(num_rounds=num_rounds)
-
-    return ServerApp(
-        strategy=strat,
         config=config,
     )
