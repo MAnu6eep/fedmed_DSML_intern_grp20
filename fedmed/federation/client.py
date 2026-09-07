@@ -68,6 +68,35 @@ class FedMedClient(fl.client.NumPyClient):
             strict=True,
         )
 
+    def _get_global_trainable_parameters(
+        self,
+        parameters: List[np.ndarray],
+    ) -> List[torch.Tensor]:
+        """
+        Extract the global trainable parameters in the same
+        order as model.parameters().
+        """
+
+        state_keys = list(
+            self.model.state_dict().keys()
+        )
+
+        global_state = {
+            key: torch.tensor(
+                value,
+                device=self.device,
+            )
+            for key, value in zip(
+                state_keys,
+                parameters,
+            )
+        }
+
+        return [
+            global_state[name].detach().clone()
+            for name, _ in self.model.named_parameters()
+        ]
+
     def fit(
         self,
         parameters: List[np.ndarray],
@@ -82,11 +111,25 @@ class FedMedClient(fl.client.NumPyClient):
         and return updated parameters.
         """
 
-        # Load the global model received from the server
+        # Save the received global model parameters
+        # for the FedProx proximal term.
+        global_trainable_parameters = (
+            self._get_global_trainable_parameters(
+                parameters
+            )
+        )
+
+        # Load global parameters into the local model
         self.set_parameters(parameters)
 
-        # Read number of local epochs
-        epochs = int(config.get("local_epochs", 1))
+        # Read local training configuration
+        epochs = int(
+            config.get("local_epochs", 1)
+        )
+
+        proximal_mu = float(
+            config.get("proximal_mu", 0.0)
+        )
 
         # Train on this hospital's local data
         training_metrics = run_local_training(
@@ -96,17 +139,28 @@ class FedMedClient(fl.client.NumPyClient):
             epochs=epochs,
             learning_rate=1e-4,
             device=self.device,
+            global_parameters=global_trainable_parameters,
+            proximal_mu=proximal_mu,
         )
 
         # Number of local training examples
-        total_samples = len(self.train_loader.dataset)
+        total_samples = len(
+            self.train_loader.dataset
+        )
 
         metrics = {
             "client_id": self.client_id,
-            "train_loss": float(training_metrics["train_loss"]),
-            "val_loss": float(training_metrics["val_loss"]),
-            "val_dice": float(training_metrics["val_dice"]),
+            "train_loss": float(
+                training_metrics["train_loss"]
+            ),
+            "val_loss": float(
+                training_metrics["val_loss"]
+            ),
+            "val_dice": float(
+                training_metrics["val_dice"]
+            ),
             "local_epochs": epochs,
+            "proximal_mu": proximal_mu,
         }
 
         # Send updated local model back to server
@@ -128,22 +182,17 @@ class FedMedClient(fl.client.NumPyClient):
         """
         Evaluate the received global model on the local
         hospital validation dataset.
-
-        NOTE:
-        The actual validation calculation will be connected
-        once the project's evaluation/loss function is finalized.
         """
 
-        # Load global parameters
         self.set_parameters(parameters)
 
-        # Evaluation mode
         self.model.eval()
 
-        total_samples = len(self.val_loader.dataset)
+        total_samples = len(
+            self.val_loader.dataset
+        )
 
-        # Temporary values until the project's evaluation
-        # function is connected here.
+        # Temporary evaluation values.
         loss = 0.0
         dice_score = 0.0
 
