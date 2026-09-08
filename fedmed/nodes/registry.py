@@ -56,8 +56,9 @@ class NodeRegistry:
         return list(self._nodes.values())
 
     def get_active_count(self) -> int:
+        """Return the number of hospitals currently online."""
         return sum(
-            1 for node in self._nodes.values() if node.status != "offline"
+            1 for node in self._nodes.values() if node.status == "online"
         )
 
 
