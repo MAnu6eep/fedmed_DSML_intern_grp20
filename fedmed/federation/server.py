@@ -14,7 +14,6 @@ import torch.nn as nn
 
 from flwr.common import (
     Context,
-    Grid,
     Metrics,
     NDArrays,
     Parameters,
@@ -194,7 +193,6 @@ app = ServerApp()
 
 @app.main()
 def main(
-    grid: Grid,
     context: Context,
 ) -> None:
     """Run federated learning with the project's SecAgg+ workflow."""
@@ -243,7 +241,7 @@ def main(
 
     # Execute the SecAgg+ workflow
     workflow(
-        grid,
+        None,
         legacy_context,
     )
 
