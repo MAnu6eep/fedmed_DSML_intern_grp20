@@ -1,12 +1,14 @@
 """fedmed/core/evaluation.py
 
 Local model validation engine, sliding-window inference, per-region tumor segmentation metrics
-(Whole Tumor, Tumor Core, Enhancing Tumor), round-level metric collection, and centralized vs. federated comparison.
+(Whole Tumor, Tumor Core, Enhancing Tumor), round-level metric collection, federated strategy callbacks,
+and centralized vs. federated comparison.
 """
 
 import json
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Callable, Dict, List, Optional, Tuple, Union
+import numpy as np
 import torch
 import torch.nn as nn
 from monai.inferers import sliding_window_inference
@@ -255,6 +257,55 @@ def run_post_training_validation(
     return metrics
 
 
+def get_federated_evaluate_fn(
+    model: nn.Module,
+    val_loader: DataLoader,
+    collector: Optional[RoundMetricCollector] = None,
+    device: torch.device = torch.device("cpu"),
+) -> Callable:
+    """Creates a server-side evaluation callback for Flower strategies.
+    
+    Evaluates the aggregated global 3D U-Net model after each federated round,
+    recording Dice, IoU, and tumor sub-region metrics formatted for dashboard telemetry.
+    """
+    def evaluate(
+        server_round: int,
+        parameters: List[np.ndarray],
+        config: Dict[str, Union[bool, bytes, float, int, str]],
+    ) -> Optional[Tuple[float, Dict[str, Union[bool, bytes, float, int, str]]]]:
+        from fedmed.federation.server import set_parameters
+
+        set_parameters(model, parameters)
+
+        metrics = evaluate_sliding_window(
+            model=model,
+            dataloader=val_loader,
+            device=device,
+        )
+
+        if collector is not None:
+            collector.record_round(
+                round_num=server_round,
+                val_loss=metrics["val_loss"],
+                dice_score=metrics["dice"],
+                iou_score=metrics["iou"],
+                num_samples=metrics["num_samples"],
+                region_metrics={
+                    "dice_wt": metrics["dice_wt"],
+                    "iou_wt": metrics["iou_wt"],
+                    "dice_tc": metrics["dice_tc"],
+                    "iou_tc": metrics["iou_tc"],
+                    "dice_et": metrics["dice_et"],
+                    "iou_et": metrics["iou_et"],
+                },
+            )
+
+        metrics["round"] = float(server_round)
+        return metrics["val_loss"], metrics
+
+    return evaluate
+
+
 def compare_centralized_vs_federated(
     federated_metrics: Dict[str, float],
     centralized_filepath: Optional[Path] = None,
@@ -300,7 +351,7 @@ if __name__ == "__main__":
 
     from fedmed.core.model import get_model
 
-    # Smoke test per-region evaluation over mock 3D MRI volume
+    # Smoke test federated evaluation function
     class Mock3DMRIBatch(torch.utils.data.Dataset):
         def __len__(self):
             return 2
@@ -314,22 +365,11 @@ if __name__ == "__main__":
     val_loader = DataLoader(Mock3DMRIBatch(), batch_size=1)
     collector = RoundMetricCollector()
 
-    res = evaluate_sliding_window(model, val_loader, roi_size=(32, 32, 16))
-    collector.record_round(
-        round_num=1,
-        val_loss=res["val_loss"],
-        dice_score=res["dice"],
-        iou_score=res["iou"],
-        num_samples=res["num_samples"],
-        region_metrics={
-            "dice_wt": res["dice_wt"], "iou_wt": res["iou_wt"],
-            "dice_tc": res["dice_tc"], "iou_tc": res["iou_tc"],
-            "dice_et": res["dice_et"], "iou_et": res["iou_et"],
-        },
-    )
+    eval_fn = get_federated_evaluate_fn(model, val_loader, collector=collector)
+    from fedmed.federation.server import get_parameters
+    params = get_parameters(model)
 
-    comp = compare_centralized_vs_federated(res)
+    loss, metrics = eval_fn(server_round=1, parameters=params, config={})
 
-    print("[OK] Per-region sliding window metrics:", res)
-    print("[OK] Round Metric Collector summary:", collector.get_summary())
-    print("[OK] Centralized vs. Federated comparison:", comp)
+    print("[OK] Federated round evaluation output:", metrics)
+    print("[OK] Collector summary:", collector.get_summary())

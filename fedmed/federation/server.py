@@ -5,7 +5,7 @@ using FedAvg, FedProx, and SecAgg+ privacy-preserving workflows.
 """
 
 from collections import OrderedDict
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Callable, Dict, List, Optional, Tuple, Union
 
 import flwr as fl
 import numpy as np
@@ -123,6 +123,7 @@ def create_secagg_requirements() -> Dict[str, int]:
 
 def create_strategy(
     initial_parameters: Optional[Parameters] = None,
+    evaluate_fn: Optional[Callable] = None,
 ) -> FedAvg:
     """Create the FedAvg strategy used by the SecAgg+ workflow."""
     config = create_secagg_config()
@@ -134,6 +135,7 @@ def create_strategy(
         min_evaluate_clients=config.num_clients,
         min_available_clients=config.num_clients,
         initial_parameters=initial_parameters,
+        evaluate_fn=evaluate_fn,
         evaluate_metrics_aggregation_fn=weighted_average_metrics,
         fit_metrics_aggregation_fn=weighted_average_metrics,
     )
@@ -145,6 +147,7 @@ def create_fedprox_strategy(
     fraction_fit: float = 1.0,
     min_fit_clients: int = 3,
     min_available_clients: int = 3,
+    evaluate_fn: Optional[Callable] = None,
 ) -> FedProx:
     """Create a configurable FedProx strategy for non-IID datasets."""
     if proximal_mu < 0:
@@ -157,6 +160,7 @@ def create_fedprox_strategy(
         min_evaluate_clients=min_available_clients,
         min_available_clients=min_available_clients,
         initial_parameters=initial_parameters,
+        evaluate_fn=evaluate_fn,
         evaluate_metrics_aggregation_fn=weighted_average_metrics,
         fit_metrics_aggregation_fn=weighted_average_metrics,
         proximal_mu=proximal_mu,
