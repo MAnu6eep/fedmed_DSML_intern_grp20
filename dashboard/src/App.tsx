@@ -12,7 +12,6 @@ import type { Hospital } from "./api/client";
 import type { FederationEventType } from "./types/federationTelemetry";
 
 export const App: React.FC = () => {
-  // Hospital state
   const hospitals = useHospitalStore(
     (state) => state.hospitals
   );
@@ -25,7 +24,6 @@ export const App: React.FC = () => {
     (state) => state.updateHospitalStatus
   );
 
-  // Telemetry state
   const addEvent = useTelemetryStore(
     (state) => state.addEvent
   );
@@ -42,6 +40,34 @@ export const App: React.FC = () => {
     (state) => state.trainingProgress
   );
 
+  const globalLoss = useTelemetryStore(
+    (state) => state.globalLoss
+  );
+
+  const globalDice = useTelemetryStore(
+    (state) => state.globalDice
+  );
+
+  const participants = useTelemetryStore(
+    (state) => state.participants
+  );
+
+  const totalClients = useTelemetryStore(
+    (state) => state.totalClients
+  );
+
+  const aggregationActive = useTelemetryStore(
+    (state) => state.aggregationActive
+  );
+
+  const aggregationDuration = useTelemetryStore(
+    (state) => state.aggregationDuration
+  );
+
+  const convergence = useTelemetryStore(
+    (state) => state.convergence
+  );
+
   const events = useTelemetryStore(
     (state) => state.events
   );
@@ -50,7 +76,6 @@ export const App: React.FC = () => {
     (state) => state.connected
   );
 
-  // Federation event → hospital status
   const statusByEvent: Partial<
     Record<FederationEventType, Hospital["status"]>
   > = {
@@ -60,17 +85,14 @@ export const App: React.FC = () => {
     training_completed: "online",
   };
 
-  // Fetch hospitals
   useEffect(() => {
     fetchHospitals();
   }, [fetchHospitals]);
 
-  // WebSocket telemetry connection
   useEffect(() => {
     const telemetryClient = new TelemetryClient();
 
     telemetryClient.connect(
-      // Event received
       (event) => {
         console.log("Telemetry event:", event);
 
@@ -89,30 +111,15 @@ export const App: React.FC = () => {
         }
       },
 
-      // Connected
       () => {
-        console.log(
-          "FedMed telemetry WebSocket connected"
-        );
-
         setConnected(true);
       },
 
-      // Error
       () => {
-        console.error(
-          "FedMed telemetry WebSocket error"
-        );
-
         setConnected(false);
       },
 
-      // Closed
       () => {
-        console.log(
-          "FedMed telemetry WebSocket disconnected"
-        );
-
         setConnected(false);
       }
     );
@@ -138,26 +145,24 @@ export const App: React.FC = () => {
 
         <main className="p-8 space-y-6 flex-1 overflow-y-auto">
 
-          {/* Page heading */}
           <div>
             <h2 className="text-xl font-semibold text-white">
               Federated Hospital Nodes
             </h2>
 
             <p className="text-sm text-slate-400">
-              Live federated training activity
+              Live federated training and convergence telemetry
             </p>
           </div>
 
 
-          {/* Federation summary */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* GLOBAL METRICS */}
 
-            {/* Current Round */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+
             <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
-
               <p className="text-sm text-slate-400">
-                Current Federated Round
+                Global FL Round
               </p>
 
               <p className="text-3xl font-bold text-white mt-2">
@@ -165,36 +170,75 @@ export const App: React.FC = () => {
               </p>
 
               <p className="text-xs text-slate-500 mt-2">
-                Live federation round
+                Current federated round
               </p>
-
             </div>
 
 
-            {/* Training Progress */}
+            <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
+              <p className="text-sm text-slate-400">
+                Global Loss
+              </p>
+
+              <p className="text-3xl font-bold text-white mt-2">
+                {globalLoss > 0
+                  ? globalLoss.toFixed(4)
+                  : "--"}
+              </p>
+
+              <p className="text-xs text-slate-500 mt-2">
+                Global model loss
+              </p>
+            </div>
+
+
+            <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
+              <p className="text-sm text-slate-400">
+                Global Dice
+              </p>
+
+              <p className="text-3xl font-bold text-white mt-2">
+                {globalDice > 0
+                  ? globalDice.toFixed(4)
+                  : "--"}
+              </p>
+
+              <p className="text-xs text-slate-500 mt-2">
+                Global segmentation score
+              </p>
+            </div>
+
+
+            <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
+              <p className="text-sm text-slate-400">
+                Client Participation
+              </p>
+
+              <p className="text-3xl font-bold text-white mt-2">
+                {participants}/{totalClients}
+              </p>
+
+              <p className="text-xs text-slate-500 mt-2">
+                Clients participating this round
+              </p>
+            </div>
+
+          </div>
+
+
+          {/* TRAINING + AGGREGATION */}
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+
             <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
 
-              <div className="flex items-center justify-between">
+              <p className="text-sm text-slate-400">
+                Training Progress
+              </p>
 
-                <div>
-                  <p className="text-sm text-slate-400">
-                    Training Progress
-                  </p>
-
-                  <p className="text-3xl font-bold text-white mt-2">
-                    {trainingProgress}%
-                  </p>
-                </div>
-
-                <div
-                  className={`h-3 w-3 rounded-full ${
-                    trainingProgress === 100
-                      ? "bg-green-500"
-                      : "bg-blue-500"
-                  }`}
-                />
-
-              </div>
+              <p className="text-3xl font-bold text-white mt-2">
+                {trainingProgress}%
+              </p>
 
               <div className="w-full bg-slate-800 rounded-full h-2 mt-4">
 
@@ -210,7 +254,39 @@ export const App: React.FC = () => {
             </div>
 
 
-            {/* WebSocket */}
+            <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
+
+              <p className="text-sm text-slate-400">
+                Aggregation Status
+              </p>
+
+              <div className="flex items-center gap-3 mt-3">
+
+                <div
+                  className={`h-3 w-3 rounded-full ${
+                    aggregationActive
+                      ? "bg-yellow-500"
+                      : "bg-green-500"
+                  }`}
+                />
+
+                <p className="text-lg font-semibold text-white">
+                  {aggregationActive
+                    ? "Aggregation Running"
+                    : "Aggregation Complete"}
+                </p>
+
+              </div>
+
+              <p className="text-xs text-slate-500 mt-2">
+                {aggregationDuration > 0
+                  ? `Last aggregation: ${aggregationDuration.toFixed(2)}s`
+                  : "Waiting for aggregation telemetry"}
+              </p>
+
+            </div>
+
+
             <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
 
               <p className="text-sm text-slate-400">
@@ -244,7 +320,98 @@ export const App: React.FC = () => {
           </div>
 
 
-          {/* Hospital nodes */}
+          {/* CONVERGENCE */}
+
+          <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
+
+            <div className="mb-6">
+
+              <h3 className="text-lg font-semibold text-white">
+                Federated Model Convergence
+              </h3>
+
+              <p className="text-sm text-slate-400">
+                Global loss and Dice score across completed rounds
+              </p>
+
+            </div>
+
+            {convergence.length === 0 ? (
+
+              <div className="h-64 flex items-center justify-center">
+                <p className="text-sm text-slate-500">
+                  Waiting for convergence metrics...
+                </p>
+              </div>
+
+            ) : (
+
+              <div className="w-full h-72 flex items-end gap-4">
+
+                {convergence.map((metric) => (
+
+                  <div
+                    key={metric.round}
+                    className="flex-1 h-full flex flex-col justify-end"
+                  >
+
+                    <div className="flex items-end justify-center gap-2 h-full">
+
+                      <div
+                        className="w-5 bg-blue-500 rounded-t"
+                        style={{
+                          height: `${Math.min(
+                            metric.dice * 100,
+                            100
+                          )}%`,
+                        }}
+                        title={`Round ${metric.round} Dice: ${metric.dice}`}
+                      />
+
+                      <div
+                        className="w-5 bg-red-500 rounded-t"
+                        style={{
+                          height: `${Math.min(
+                            metric.loss * 100,
+                            100
+                          )}%`,
+                        }}
+                        title={`Round ${metric.round} Loss: ${metric.loss}`}
+                      />
+
+                    </div>
+
+                    <p className="text-xs text-slate-500 text-center mt-2">
+                      R{metric.round}
+                    </p>
+
+                  </div>
+
+                ))}
+
+              </div>
+
+            )}
+
+            <div className="flex gap-6 mt-4 text-xs text-slate-400">
+
+              <div className="flex items-center gap-2">
+                <span className="h-2 w-2 bg-blue-500 rounded-full" />
+                Dice
+              </div>
+
+              <div className="flex items-center gap-2">
+                <span className="h-2 w-2 bg-red-500 rounded-full" />
+                Loss
+              </div>
+
+            </div>
+
+          </div>
+
+
+          {/* HOSPITAL NODES */}
+
           <div>
 
             <h3 className="text-lg font-semibold text-white mb-4">
@@ -257,7 +424,6 @@ export const App: React.FC = () => {
 
                 <HospitalNodeCard
                   key={hospital.hospital_id}
-
                   node={{
                     id: hospital.hospital_id,
                     name: hospital.name,
@@ -282,7 +448,8 @@ export const App: React.FC = () => {
           </div>
 
 
-          {/* Live activity */}
+          {/* LIVE ACTIVITY */}
+
           <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
 
             <div className="flex items-center justify-between mb-4">
@@ -304,13 +471,10 @@ export const App: React.FC = () => {
                     : "bg-red-500/10 text-red-400"
                 }`}
               >
-                {connected
-                  ? "LIVE"
-                  : "OFFLINE"}
+                {connected ? "LIVE" : "OFFLINE"}
               </span>
 
             </div>
-
 
             <div className="space-y-2">
 
@@ -353,9 +517,19 @@ export const App: React.FC = () => {
 
                       </div>
 
-                      <span className="text-xs text-slate-500">
-                        Round {event.round}
-                      </span>
+                      <div className="text-right">
+
+                        <p className="text-xs text-slate-400">
+                          Round {event.round}
+                        </p>
+
+                        <p className="text-xs text-slate-600">
+                          {new Date(
+                            event.timestamp
+                          ).toLocaleTimeString()}
+                        </p>
+
+                      </div>
 
                     </div>
 
