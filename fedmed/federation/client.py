@@ -1,5 +1,4 @@
-"""
-fedmed/federation/client.py
+"""fedmed/federation/client.py
 
 Flower NumPyClient implementation for a local hospital node.
 Each client trains the model on its own local data partition.
@@ -14,6 +13,7 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 
+from fedmed.core.evaluation import evaluate_sliding_window
 from fedmed.core.training import run_local_training
 
 
@@ -66,6 +66,32 @@ class FedMedClient(fl.client.NumPyClient):
             strict=True,
         )
 
+    def _get_global_trainable_parameters(
+        self,
+        parameters: List[np.ndarray],
+    ) -> List[torch.Tensor]:
+        """
+        Extract the global trainable parameters in the same
+        order as model.parameters().
+        """
+        state_keys = list(self.model.state_dict().keys())
+
+        global_state = {
+            key: torch.tensor(
+                value,
+                device=self.device,
+            )
+            for key, value in zip(
+                state_keys,
+                parameters,
+            )
+        }
+
+        return [
+            global_state[name].detach().clone()
+            for name, _ in self.model.named_parameters()
+        ]
+
     def fit(
         self,
         parameters: List[np.ndarray],
@@ -79,11 +105,15 @@ class FedMedClient(fl.client.NumPyClient):
         Receive global parameters, train locally,
         and return updated parameters.
         """
-        # Load the global model received from the server.
+        # Save the received global model parameters for the FedProx proximal term.
+        global_trainable_parameters = self._get_global_trainable_parameters(parameters)
+
+        # Load global parameters into the local model.
         self.set_parameters(parameters)
 
-        # Read the configured number of local epochs.
+        # Read local training configuration.
         epochs = int(config.get("local_epochs", 1))
+        proximal_mu = float(config.get("proximal_mu", 0.0))
 
         # Train on this hospital's local data.
         training_metrics = run_local_training(
@@ -93,10 +123,16 @@ class FedMedClient(fl.client.NumPyClient):
             epochs=epochs,
             learning_rate=1e-4,
             device=self.device,
+            global_parameters=global_trainable_parameters,
+            proximal_mu=proximal_mu,
         )
 
         # Number of local training examples.
-        total_samples = len(self.train_loader.dataset)
+        total_samples = (
+            len(self.train_loader.dataset)
+            if self.train_loader and hasattr(self.train_loader, "dataset")
+            else 0
+        )
 
         metrics = {
             "client_id": self.client_id,
@@ -104,6 +140,7 @@ class FedMedClient(fl.client.NumPyClient):
             "val_loss": float(training_metrics["val_loss"]),
             "val_dice": float(training_metrics["val_dice"]),
             "local_epochs": epochs,
+            "proximal_mu": proximal_mu,
         }
 
         # Send updated local model back to the server.
@@ -125,10 +162,6 @@ class FedMedClient(fl.client.NumPyClient):
         """
         Evaluate the received global model on the local
         hospital validation dataset.
-
-        NOTE:
-        The actual validation calculation will be connected
-        once the project's evaluation/loss function is finalized.
         """
         # Load global parameters.
         self.set_parameters(parameters)
@@ -137,17 +170,33 @@ class FedMedClient(fl.client.NumPyClient):
         self.model.eval()
 
         # Number of local validation examples.
-        total_samples = len(self.val_loader.dataset)
+        total_samples = (
+            len(self.val_loader.dataset)
+            if self.val_loader and hasattr(self.val_loader, "dataset")
+            else 0
+        )
 
-        # Temporary values until the project's evaluation
-        # function is connected.
-        loss = 0.0
-        dice_score = 0.0
+        # Execute 3D sliding-window evaluation over local hospital validation loader.
+        if self.val_loader and len(self.val_loader) > 0:
+            val_results = evaluate_sliding_window(
+                model=self.model,
+                dataloader=self.val_loader,
+                device=self.device,
+            )
+            loss = val_results.get("val_loss", 0.0)
+            dice_score = val_results.get("dice", 0.0)
+            iou_score = val_results.get("iou", 0.0)
+        else:
+            loss = 0.0
+            dice_score = 0.0
+            iou_score = 0.0
 
         return (
             float(loss),
             total_samples,
             {
                 "dice": float(dice_score),
+                "iou": float(iou_score),
+                "loss": float(loss),
             },
         )
