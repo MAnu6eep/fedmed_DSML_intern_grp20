@@ -22,7 +22,7 @@ app = FastAPI(
         "Live metrics, secure aggregation status, and node health "
         "monitor for Federated Medical Segmentation."
     ),
-    version="0.1.0",
+    version="1.1.0",
 )
 
 HOSPITAL_NODES = {

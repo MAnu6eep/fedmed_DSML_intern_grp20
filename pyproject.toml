@@ -42,3 +42,32 @@ dev = [
     "black>=24.2.0",
     "flake8>=7.0.0"
 ]
+[tool.flwr.app]
+publisher = "fedmed"
+num-server-rounds = 2
+
+[tool.flwr.app.components]
+serverapp = "fedmed.federation.server:app"
+clientapp = "fedmed.federation.client_app:app"
+
+
+#######################################################################
+# CONFIGURATION MIGRATION NOTICE:
+#
+# What was previously called "federation config" for SuperLink
+# connections in pyproject.toml has been renamed and moved.
+#
+# These settings are now **SuperLink connection configuration**
+# and are defined in the Flower configuration file.
+#
+# The entries below are commented out intentionally and are kept
+# only as a migration reference.
+#
+# Docs: https://flower.ai/docs/framework/ref-flower-configuration.html
+#######################################################################
+
+# [tool.flwr.federations]
+# default = "local-simulation"
+
+# [tool.flwr.federations.local-simulation]
+# options.num-supernodes = 3
