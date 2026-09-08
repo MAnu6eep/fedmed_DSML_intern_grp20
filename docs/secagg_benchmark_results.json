@@ -1,0 +1,38 @@
+{
+    "benchmark": {
+        "num_clients": 5,
+        "model_size": 10000,
+        "num_runs": 3,
+        "scheme": "CKKS",
+        "poly_modulus_degree": 8192,
+        "coeff_mod_bit_sizes": [
+            60,
+            40,
+            40,
+            60
+        ],
+        "global_scale": 1099511627776
+    },
+    "fedavg": {
+        "aggregation_time_seconds": 0.010487166666280245,
+        "total_time_seconds": 0.010487166666280245,
+        "communication_bytes": 200000
+    },
+    "secagg_plus": {
+        "encryption_time_seconds": 0.0967105000002751,
+        "serialization_time_seconds": 0.04459096666687401,
+        "aggregation_time_seconds": 0.0007378999998763902,
+        "decryption_time_seconds": 0.004597466666685553,
+        "total_time_seconds": 0.14663683333371105,
+        "plaintext_bytes": 200000,
+        "encrypted_bytes": 4970721,
+        "communication_ratio": 24.853605,
+        "communication_overhead_percent": 2385.3605000000002
+    },
+    "comparison": {
+        "time_ratio": 13.982502424148326,
+        "time_overhead_percent": 1298.2502424148327,
+        "communication_ratio": 24.853605,
+        "communication_overhead_percent": 2385.3605000000002
+    }
+}
