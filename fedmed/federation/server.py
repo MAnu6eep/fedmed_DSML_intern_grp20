@@ -14,12 +14,14 @@ import torch.nn as nn
 
 from flwr.common import (
     Context,
-    Grid,
     Metrics,
     NDArrays,
     Parameters,
     ndarrays_to_parameters,
 )
+
+from flwr.serverapp import Grid
+
 from flwr.server import (
     LegacyContext,
     ServerApp,
@@ -32,33 +34,57 @@ from flwr.server.workflow import (
 )
 
 from fedmed.core.model import get_model
-from fedmed.privacy.secagg_config import SecAggPlusConfig
-from fedmed.privacy.secure_aggregation import SecureAggregationManager
+
 
 
 def weighted_average_metrics(
     metrics: List[Tuple[int, Metrics]],
 ) -> Metrics:
-    """Aggregate local validation metrics across hospital nodes."""
-    total_examples = sum(num_examples for num_examples, _ in metrics)
+    """
+    Compute weighted averages only for numeric metrics.
+
+    Non-numeric metadata such as client_id is ignored.
+    """
+
+    total_examples = sum(
+        num_examples
+        for num_examples, _ in metrics
+    )
 
     if total_examples == 0:
         return {}
 
-    aggregated: Dict[str, float] = {}
+    aggregated_metrics: Metrics = {}
+
     metric_keys = set()
-    for _, m in metrics:
-        metric_keys.update(m.keys())
+
+    for _, metric in metrics:
+        metric_keys.update(metric.keys())
 
     for key in metric_keys:
-        weighted_sum = sum(
-            num_examples * float(metric.get(key, 0.0))
-            for num_examples, metric in metrics
-            if key in metric
-        )
-        aggregated[key] = round(weighted_sum / total_examples, 6)
+        weighted_sum = 0.0
+        valid_metric = False
 
-    return aggregated
+        for num_examples, metric in metrics:
+            if key not in metric:
+                continue
+
+            value = metric[key]
+
+            if isinstance(value, (int, float)):
+                weighted_sum += (
+                    num_examples
+                    * float(value)
+                )
+                valid_metric = True
+
+        if valid_metric:
+            aggregated_metrics[key] = (
+                weighted_sum
+                / total_examples
+            )
+
+    return aggregated_metrics
 
 
 def get_parameters(
@@ -102,8 +128,10 @@ def get_initial_parameters(
     return ndarrays_to_parameters(ndarrays)
 
 
-def create_secagg_config() -> SecAggPlusConfig:
+def create_secagg_config():
     """Create the project SecAgg+ configuration."""
+    from fedmed.privacy.secagg_config import SecAggPlusConfig
+
     return SecAggPlusConfig(
         num_clients=3,
         threshold=2,
@@ -114,12 +142,20 @@ def create_secagg_config() -> SecAggPlusConfig:
     )
 
 
-def create_secagg_requirements() -> Dict[str, int]:
-    """Create SecAgg+ client participation requirements."""
-    secagg_config = create_secagg_config()
-    secagg_manager = SecureAggregationManager(secagg_config)
-    return secagg_manager.get_round_requirements()
+def create_secagg_requirements() -> dict[str, int]:
+    from fedmed.privacy.secagg_config import SecAggPlusConfig
+    from fedmed.privacy.secure_aggregation import SecureAggregationManager
 
+    secagg_config = SecAggPlusConfig(
+        num_clients=3,
+        threshold=2,
+    )
+
+    secagg_manager = SecureAggregationManager(
+        secagg_config
+    )
+
+    return secagg_manager.get_round_requirements()
 
 def create_strategy(
     initial_parameters: Optional[Parameters] = None,
