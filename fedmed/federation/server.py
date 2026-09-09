@@ -19,11 +19,14 @@ from flwr.common import (
     Parameters,
     ndarrays_to_parameters,
 )
+
 from flwr.server import (
+    Grid,
     LegacyContext,
     ServerApp,
     ServerConfig,
 )
+
 from flwr.server.strategy import FedAvg, FedProx
 from flwr.server.workflow import (
     DefaultWorkflow,
@@ -39,23 +42,33 @@ def weighted_average_metrics(
     metrics: List[Tuple[int, Metrics]],
 ) -> Metrics:
     """Aggregate local validation metrics across hospital nodes."""
-    total_examples = sum(num_examples for num_examples, _ in metrics)
+    total_examples = sum(
+        num_examples for num_examples, _ in metrics
+    )
 
     if total_examples == 0:
         return {}
 
     aggregated: Dict[str, float] = {}
     metric_keys = set()
-    for _, m in metrics:
-        metric_keys.update(m.keys())
+
+    for _, metric in metrics:
+        for key, value in metric.items():
+            if isinstance(value, (int, float)) and not isinstance(value, bool):
+                metric_keys.add(key)
 
     for key in metric_keys:
         weighted_sum = sum(
             num_examples * float(metric.get(key, 0.0))
             for num_examples, metric in metrics
             if key in metric
+            and isinstance(metric[key], (int, float))
+            and not isinstance(metric[key], bool)
         )
-        aggregated[key] = round(weighted_sum / total_examples, 6)
+        aggregated[key] = round(
+            weighted_sum / total_examples,
+            6,
+        )
 
     return aggregated
 
@@ -193,6 +206,7 @@ app = ServerApp()
 
 @app.main()
 def main(
+    grid: Grid,
     context: Context,
 ) -> None:
     """Run federated learning with the project's SecAgg+ workflow."""
@@ -241,7 +255,7 @@ def main(
 
     # Execute the SecAgg+ workflow
     workflow(
-        None,
+        grid,
         legacy_context,
     )
 
