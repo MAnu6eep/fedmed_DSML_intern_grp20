@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 
 import { Sidebar } from "./components/Sidebar";
 import { Header } from "./components/Header";
@@ -9,7 +9,15 @@ import { TelemetryClient } from "./api/telemetry";
 import { useTelemetryStore } from "./store/telemetryStore";
 
 import type { Hospital } from "./api/client";
-import type { FederationEventType } from "./types/federationTelemetry";
+import type {
+  FederationEventType,
+  FederationTelemetryEvent,
+} from "./types/federationTelemetry";
+
+interface LocalMetric {
+  loss: number;
+  dice: number;
+}
 
 export const App: React.FC = () => {
   const hospitals = useHospitalStore(
@@ -76,6 +84,15 @@ export const App: React.FC = () => {
     (state) => state.connected
   );
 
+  /*
+   * Live local metrics received from WebSocket.
+   * hospitalStore remains the fallback when no telemetry
+   * has arrived yet.
+   */
+  const [localMetrics, setLocalMetrics] = useState<
+    Record<string, LocalMetric>
+  >({});
+
   const statusByEvent: Partial<
     Record<FederationEventType, Hospital["status"]>
   > = {
@@ -93,11 +110,15 @@ export const App: React.FC = () => {
     const telemetryClient = new TelemetryClient();
 
     telemetryClient.connect(
-      (event) => {
+      (event: FederationTelemetryEvent) => {
         console.log("Telemetry event:", event);
 
+        // Store event for history/review
         addEvent(event);
 
+        /*
+         * Update hospital connection/training state
+         */
         if (event.hospital_id) {
           const nextStatus =
             statusByEvent[event.event_type];
@@ -109,16 +130,64 @@ export const App: React.FC = () => {
             );
           }
         }
+
+        /*
+         * Update LOCAL hospital metrics from live telemetry.
+         *
+         * Expected payload:
+         * {
+         *   loss: number,
+         *   dice: number
+         * }
+         */
+        if (
+          event.hospital_id &&
+          (event.event_type === "training_completed" ||
+            event.event_type === "training_started")
+        ) {
+          const loss = event.payload.loss;
+          const dice = event.payload.dice;
+
+          if (
+            typeof loss === "number" ||
+            typeof dice === "number"
+          ) {
+            setLocalMetrics((previous) => {
+              const existing =
+                previous[event.hospital_id!] ?? {
+                  loss: 0,
+                  dice: 0,
+                };
+
+              return {
+                ...previous,
+                [event.hospital_id!]: {
+                  loss:
+                    typeof loss === "number"
+                      ? loss
+                      : existing.loss,
+                  dice:
+                    typeof dice === "number"
+                      ? dice
+                      : existing.dice,
+                },
+              };
+            });
+          }
+        }
       },
 
+      // WebSocket connected
       () => {
         setConnected(true);
       },
 
+      // WebSocket error
       () => {
         setConnected(false);
       },
 
+      // WebSocket closed
       () => {
         setConnected(false);
       }
@@ -145,6 +214,8 @@ export const App: React.FC = () => {
 
         <main className="p-8 space-y-6 flex-1 overflow-y-auto">
 
+          {/* PAGE HEADER */}
+
           <div>
             <h2 className="text-xl font-semibold text-white">
               Federated Hospital Nodes
@@ -160,6 +231,8 @@ export const App: React.FC = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
 
+            {/* ROUND */}
+
             <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
               <p className="text-sm text-slate-400">
                 Global FL Round
@@ -174,6 +247,8 @@ export const App: React.FC = () => {
               </p>
             </div>
 
+
+            {/* GLOBAL LOSS */}
 
             <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
               <p className="text-sm text-slate-400">
@@ -192,6 +267,8 @@ export const App: React.FC = () => {
             </div>
 
 
+            {/* GLOBAL DICE */}
+
             <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
               <p className="text-sm text-slate-400">
                 Global Dice
@@ -208,6 +285,8 @@ export const App: React.FC = () => {
               </p>
             </div>
 
+
+            {/* PARTICIPATION */}
 
             <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
               <p className="text-sm text-slate-400">
@@ -230,6 +309,8 @@ export const App: React.FC = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
 
+            {/* TRAINING */}
+
             <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
 
               <p className="text-sm text-slate-400">
@@ -241,18 +322,18 @@ export const App: React.FC = () => {
               </p>
 
               <div className="w-full bg-slate-800 rounded-full h-2 mt-4">
-
                 <div
                   className="bg-blue-500 h-2 rounded-full transition-all duration-500"
                   style={{
                     width: `${trainingProgress}%`,
                   }}
                 />
-
               </div>
 
             </div>
 
+
+            {/* AGGREGATION */}
 
             <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
 
@@ -280,12 +361,16 @@ export const App: React.FC = () => {
 
               <p className="text-xs text-slate-500 mt-2">
                 {aggregationDuration > 0
-                  ? `Last aggregation: ${aggregationDuration.toFixed(2)}s`
+                  ? `Last aggregation: ${aggregationDuration.toFixed(
+                      2
+                    )}s`
                   : "Waiting for aggregation telemetry"}
               </p>
 
             </div>
 
+
+            {/* CONNECTION */}
 
             <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
 
@@ -357,8 +442,10 @@ export const App: React.FC = () => {
 
                     <div className="flex items-end justify-center gap-2 h-full">
 
+                      {/* DICE */}
+
                       <div
-                        className="w-5 bg-blue-500 rounded-t"
+                        className="w-5 bg-blue-500 rounded-t transition-all duration-500"
                         style={{
                           height: `${Math.min(
                             metric.dice * 100,
@@ -368,8 +455,10 @@ export const App: React.FC = () => {
                         title={`Round ${metric.round} Dice: ${metric.dice}`}
                       />
 
+                      {/* LOSS */}
+
                       <div
-                        className="w-5 bg-red-500 rounded-t"
+                        className="w-5 bg-red-500 rounded-t transition-all duration-500"
                         style={{
                           height: `${Math.min(
                             metric.loss * 100,
@@ -420,28 +509,46 @@ export const App: React.FC = () => {
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
 
-              {hospitals.map((hospital) => (
+              {hospitals.map((hospital) => {
 
-                <HospitalNodeCard
-                  key={hospital.hospital_id}
-                  node={{
-                    id: hospital.hospital_id,
-                    name: hospital.name,
-                    host: "127.0.0.1",
-                    port: hospital.port,
-                    grpcPort: hospital.port,
-                    sampleCount: hospital.samples,
-                    status: hospital.status,
-                    currentRound: currentRound,
-                    localLoss: hospital.loss,
-                    localDice: hospital.dice,
-                    lastHeartbeat:
-                      new Date().toISOString(),
-                    isSecAggActive: true,
-                  }}
-                />
+                const liveMetrics =
+                  localMetrics[hospital.hospital_id];
 
-              ))}
+                const localLoss =
+                  liveMetrics?.loss ??
+                  hospital.loss;
+
+                const localDice =
+                  liveMetrics?.dice ??
+                  hospital.dice;
+
+                return (
+                  <HospitalNodeCard
+                    key={hospital.hospital_id}
+                    node={{
+                      id: hospital.hospital_id,
+                      name: hospital.name,
+                      host: "127.0.0.1",
+                      port: hospital.port,
+                      grpcPort: hospital.port,
+                      sampleCount: hospital.samples,
+                      status: hospital.status,
+                      currentRound: currentRound,
+
+                      // IMPORTANT:
+                      // Live WebSocket metrics first,
+                      // HTTP metrics as fallback.
+                      localLoss,
+                      localDice,
+
+                      lastHeartbeat:
+                        new Date().toISOString(),
+
+                      isSecAggActive: true,
+                    }}
+                  />
+                );
+              })}
 
             </div>
 
@@ -475,6 +582,7 @@ export const App: React.FC = () => {
               </span>
 
             </div>
+
 
             <div className="space-y-2">
 
