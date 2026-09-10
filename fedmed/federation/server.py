@@ -168,6 +168,22 @@ def create_strategy(
         fit_metrics_aggregation_fn=weighted_average_metrics,
     )
 
+def create_server_strategy(
+    initial_parameters: Optional[Parameters] = None,
+    fraction_fit: float = 1.0,
+    min_fit_clients: int = 3,
+    min_available_clients: int = 3,
+) -> FedAvg:
+    return FedAvg(
+        fraction_fit=fraction_fit,
+        fraction_evaluate=1.0,
+        min_fit_clients=min_fit_clients,
+        min_evaluate_clients=min_fit_clients,
+        min_available_clients=min_available_clients,
+        initial_parameters=initial_parameters,
+        evaluate_metrics_aggregation_fn=weighted_average_metrics,
+        fit_metrics_aggregation_fn=weighted_average_metrics,
+    )
 
 def create_fedprox_strategy(
     proximal_mu: float = 0.01,
