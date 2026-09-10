@@ -1,0 +1,60 @@
+[
+  {
+    "strategy": "FedAvg",
+    "history": [
+      {
+        "round": 1,
+        "train_loss": 1.42775763074557,
+        "val_loss": 1.268044501543045,
+        "parameter_delta": 0.0,
+        "participants": 3,
+        "failures": 0
+      },
+      {
+        "round": 2,
+        "train_loss": 1.414554238319397,
+        "val_loss": 1.2685267825921376,
+        "parameter_delta": 1.236256582969505,
+        "participants": 3,
+        "failures": 0
+      },
+      {
+        "round": 3,
+        "train_loss": 1.400894582271576,
+        "val_loss": 1.2681675255298615,
+        "parameter_delta": 0.8051938008475148,
+        "participants": 3,
+        "failures": 0
+      }
+    ]
+  },
+  {
+    "strategy": "FedProx",
+    "history": [
+      {
+        "round": 1,
+        "train_loss": 1.4277590413888295,
+        "val_loss": 1.2681560118993123,
+        "parameter_delta": 0.0,
+        "participants": 3,
+        "failures": 0
+      },
+      {
+        "round": 2,
+        "train_loss": 1.4145560165246327,
+        "val_loss": 1.2688049674034119,
+        "parameter_delta": 1.2363023081234865,
+        "participants": 3,
+        "failures": 0
+      },
+      {
+        "round": 3,
+        "train_loss": 1.4008965293566387,
+        "val_loss": 1.2684868077437084,
+        "parameter_delta": 0.8051963868685301,
+        "participants": 3,
+        "failures": 0
+      }
+    ]
+  }
+]

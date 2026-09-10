@@ -20,13 +20,19 @@ from flwr.common import (
     ndarrays_to_parameters,
 )
 
+try:
+    from flwr.serverapp import Grid
+except ImportError:
+    try:
+        from flwr.server import Grid
+    except ImportError:
+        Grid = None
+
 from flwr.server import (
-    Grid,
     LegacyContext,
     ServerApp,
     ServerConfig,
 )
-
 from flwr.server.strategy import FedAvg, FedProx
 from flwr.server.workflow import (
     DefaultWorkflow,
@@ -34,22 +40,20 @@ from flwr.server.workflow import (
 )
 
 from fedmed.core.model import get_model
-from fedmed.privacy.secagg_config import SecAggPlusConfig
-from fedmed.privacy.secure_aggregation import SecureAggregationManager
 
 
 def weighted_average_metrics(
     metrics: List[Tuple[int, Metrics]],
 ) -> Metrics:
-    """Aggregate local validation metrics across hospital nodes."""
-    total_examples = sum(
-        num_examples for num_examples, _ in metrics
-    )
+    """Aggregate local validation metrics across hospital nodes.
+    Computes weighted averages strictly for numerical metrics, filtering out metadata.
+    """
+    total_examples = sum(num_examples for num_examples, _ in metrics)
 
     if total_examples == 0:
         return {}
 
-    aggregated: Dict[str, float] = {}
+    aggregated_metrics: Metrics = {}
     metric_keys = set()
 
     for _, metric in metrics:
@@ -58,19 +62,22 @@ def weighted_average_metrics(
                 metric_keys.add(key)
 
     for key in metric_keys:
-        weighted_sum = sum(
-            num_examples * float(metric.get(key, 0.0))
-            for num_examples, metric in metrics
-            if key in metric
-            and isinstance(metric[key], (int, float))
-            and not isinstance(metric[key], bool)
-        )
-        aggregated[key] = round(
-            weighted_sum / total_examples,
-            6,
-        )
+        weighted_sum = 0.0
+        valid_metric = False
 
-    return aggregated
+        for num_examples, metric in metrics:
+            if key not in metric:
+                continue
+
+            value = metric[key]
+            if isinstance(value, (int, float)) and not isinstance(value, bool):
+                weighted_sum += num_examples * float(value)
+                valid_metric = True
+
+        if valid_metric:
+            aggregated_metrics[key] = round(weighted_sum / total_examples, 6)
+
+    return aggregated_metrics
 
 
 def get_parameters(
@@ -114,8 +121,10 @@ def get_initial_parameters(
     return ndarrays_to_parameters(ndarrays)
 
 
-def create_secagg_config() -> SecAggPlusConfig:
+def create_secagg_config():
     """Create the project SecAgg+ configuration."""
+    from fedmed.privacy.secagg_config import SecAggPlusConfig
+
     return SecAggPlusConfig(
         num_clients=3,
         threshold=2,
@@ -128,7 +137,14 @@ def create_secagg_config() -> SecAggPlusConfig:
 
 def create_secagg_requirements() -> Dict[str, int]:
     """Create SecAgg+ client participation requirements."""
-    secagg_config = create_secagg_config()
+    from fedmed.privacy.secagg_config import SecAggPlusConfig
+    from fedmed.privacy.secure_aggregation import SecureAggregationManager
+
+    secagg_config = SecAggPlusConfig(
+        num_clients=3,
+        threshold=2,
+    )
+
     secagg_manager = SecureAggregationManager(secagg_config)
     return secagg_manager.get_round_requirements()
 
@@ -206,7 +222,7 @@ app = ServerApp()
 
 @app.main()
 def main(
-    grid: Grid,
+    grid: Optional[object],
     context: Context,
 ) -> None:
     """Run federated learning with the project's SecAgg+ workflow."""
