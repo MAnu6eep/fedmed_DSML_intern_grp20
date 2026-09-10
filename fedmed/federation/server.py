@@ -5,7 +5,7 @@ using FedAvg, FedProx, and SecAgg+ privacy-preserving workflows.
 """
 
 from collections import OrderedDict
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Callable, Dict, List, Optional, Tuple, Union
 
 import flwr as fl
 import numpy as np
@@ -20,7 +20,13 @@ from flwr.common import (
     ndarrays_to_parameters,
 )
 
-from flwr.serverapp import Grid
+try:
+    from flwr.serverapp import Grid
+except ImportError:
+    try:
+        from flwr.server import Grid
+    except ImportError:
+        Grid = None
 
 from flwr.server import (
     LegacyContext,
@@ -36,30 +42,24 @@ from flwr.server.workflow import (
 from fedmed.core.model import get_model
 
 
-
 def weighted_average_metrics(
     metrics: List[Tuple[int, Metrics]],
 ) -> Metrics:
+    """Aggregate local validation metrics across hospital nodes.
+    Computes weighted averages strictly for numerical metrics, filtering out metadata.
     """
-    Compute weighted averages only for numeric metrics.
-
-    Non-numeric metadata such as client_id is ignored.
-    """
-
-    total_examples = sum(
-        num_examples
-        for num_examples, _ in metrics
-    )
+    total_examples = sum(num_examples for num_examples, _ in metrics)
 
     if total_examples == 0:
         return {}
 
     aggregated_metrics: Metrics = {}
-
     metric_keys = set()
 
     for _, metric in metrics:
-        metric_keys.update(metric.keys())
+        for key, value in metric.items():
+            if isinstance(value, (int, float)) and not isinstance(value, bool):
+                metric_keys.add(key)
 
     for key in metric_keys:
         weighted_sum = 0.0
@@ -70,19 +70,12 @@ def weighted_average_metrics(
                 continue
 
             value = metric[key]
-
-            if isinstance(value, (int, float)):
-                weighted_sum += (
-                    num_examples
-                    * float(value)
-                )
+            if isinstance(value, (int, float)) and not isinstance(value, bool):
+                weighted_sum += num_examples * float(value)
                 valid_metric = True
 
         if valid_metric:
-            aggregated_metrics[key] = (
-                weighted_sum
-                / total_examples
-            )
+            aggregated_metrics[key] = round(weighted_sum / total_examples, 6)
 
     return aggregated_metrics
 
@@ -142,7 +135,8 @@ def create_secagg_config():
     )
 
 
-def create_secagg_requirements() -> dict[str, int]:
+def create_secagg_requirements() -> Dict[str, int]:
+    """Create SecAgg+ client participation requirements."""
     from fedmed.privacy.secagg_config import SecAggPlusConfig
     from fedmed.privacy.secure_aggregation import SecureAggregationManager
 
@@ -151,14 +145,13 @@ def create_secagg_requirements() -> dict[str, int]:
         threshold=2,
     )
 
-    secagg_manager = SecureAggregationManager(
-        secagg_config
-    )
-
+    secagg_manager = SecureAggregationManager(secagg_config)
     return secagg_manager.get_round_requirements()
+
 
 def create_strategy(
     initial_parameters: Optional[Parameters] = None,
+    evaluate_fn: Optional[Callable] = None,
 ) -> FedAvg:
     """Create the FedAvg strategy used by the SecAgg+ workflow."""
     config = create_secagg_config()
@@ -170,6 +163,7 @@ def create_strategy(
         min_evaluate_clients=config.num_clients,
         min_available_clients=config.num_clients,
         initial_parameters=initial_parameters,
+        evaluate_fn=evaluate_fn,
         evaluate_metrics_aggregation_fn=weighted_average_metrics,
         fit_metrics_aggregation_fn=weighted_average_metrics,
     )
@@ -181,6 +175,7 @@ def create_fedprox_strategy(
     fraction_fit: float = 1.0,
     min_fit_clients: int = 3,
     min_available_clients: int = 3,
+    evaluate_fn: Optional[Callable] = None,
 ) -> FedProx:
     """Create a configurable FedProx strategy for non-IID datasets."""
     if proximal_mu < 0:
@@ -193,6 +188,7 @@ def create_fedprox_strategy(
         min_evaluate_clients=min_available_clients,
         min_available_clients=min_available_clients,
         initial_parameters=initial_parameters,
+        evaluate_fn=evaluate_fn,
         evaluate_metrics_aggregation_fn=weighted_average_metrics,
         fit_metrics_aggregation_fn=weighted_average_metrics,
         proximal_mu=proximal_mu,
@@ -226,7 +222,7 @@ app = ServerApp()
 
 @app.main()
 def main(
-    grid: Grid,
+    grid: Optional[object],
     context: Context,
 ) -> None:
     """Run federated learning with the project's SecAgg+ workflow."""
