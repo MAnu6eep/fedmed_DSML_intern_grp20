@@ -193,6 +193,46 @@ def create_fedprox_strategy(
         fit_metrics_aggregation_fn=weighted_average_metrics,
         proximal_mu=proximal_mu,
     )
+def create_server_strategy(
+    strategy_name: str = "fedavg",
+    proximal_mu: float = 0.01,
+    initial_parameters: Optional[Parameters] = None,
+    fraction_fit: float = 1.0,
+    min_fit_clients: int = 3,
+    min_available_clients: int = 3,
+    evaluate_fn: Optional[Callable] = None,
+):
+    """Create a server strategy for FedAvg/FedProx experiments."""
+
+    strategy_name = strategy_name.lower()
+
+    if strategy_name == "fedavg":
+        return FedAvg(
+            fraction_fit=fraction_fit,
+            fraction_evaluate=1.0,
+            min_fit_clients=min_fit_clients,
+            min_evaluate_clients=min_fit_clients,
+            min_available_clients=min_available_clients,
+            initial_parameters=initial_parameters,
+            evaluate_fn=evaluate_fn,
+            fit_metrics_aggregation_fn=weighted_average_metrics,
+            evaluate_metrics_aggregation_fn=weighted_average_metrics,
+        )
+
+    if strategy_name == "fedprox":
+        return create_fedprox_strategy(
+            proximal_mu=proximal_mu,
+            initial_parameters=initial_parameters,
+            fraction_fit=fraction_fit,
+            min_fit_clients=min_fit_clients,
+            min_available_clients=min_available_clients,
+            evaluate_fn=evaluate_fn,
+        )
+
+    raise ValueError(
+        f"Unsupported strategy: {strategy_name}. "
+        "Expected 'fedavg' or 'fedprox'."
+    )
 
 
 def create_secagg_workflow() -> SecAggPlusWorkflow:
