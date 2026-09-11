@@ -4,25 +4,25 @@
     "history": [
       {
         "round": 1,
-        "train_loss": 1.42775763074557,
-        "val_loss": 1.268044501543045,
+        "train_loss": 1.4277576208114624,
+        "val_loss": 1.2682776947816212,
         "parameter_delta": 0.0,
         "participants": 3,
         "failures": 0
       },
       {
         "round": 2,
-        "train_loss": 1.414554238319397,
-        "val_loss": 1.2685267825921376,
-        "parameter_delta": 1.236256582969505,
+        "train_loss": 1.4145541886488597,
+        "val_loss": 1.2688554227352142,
+        "parameter_delta": 1.2363389438673558,
         "participants": 3,
         "failures": 0
       },
       {
         "round": 3,
-        "train_loss": 1.400894582271576,
-        "val_loss": 1.2681675255298615,
-        "parameter_delta": 0.8051938008475148,
+        "train_loss": 1.400894542535146,
+        "val_loss": 1.2686452567577362,
+        "parameter_delta": 0.8052448655297698,
         "participants": 3,
         "failures": 0
       }
@@ -33,25 +33,25 @@
     "history": [
       {
         "round": 1,
-        "train_loss": 1.4277590413888295,
-        "val_loss": 1.2681560118993123,
+        "train_loss": 1.4277590314547222,
+        "val_loss": 1.2681504885355632,
         "parameter_delta": 0.0,
         "participants": 3,
         "failures": 0
       },
       {
         "round": 2,
-        "train_loss": 1.4145560165246327,
-        "val_loss": 1.2688049674034119,
-        "parameter_delta": 1.2363023081234865,
+        "train_loss": 1.4145559668540955,
+        "val_loss": 1.268806238969167,
+        "parameter_delta": 1.236324060671233,
         "participants": 3,
         "failures": 0
       },
       {
         "round": 3,
-        "train_loss": 1.4008965293566387,
-        "val_loss": 1.2684868077437084,
-        "parameter_delta": 0.8051963868685301,
+        "train_loss": 1.4008964995543163,
+        "val_loss": 1.2684850692749023,
+        "parameter_delta": 0.8052392264499957,
         "participants": 3,
         "failures": 0
       }
