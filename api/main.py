@@ -307,3 +307,19 @@ async def test_round_complete():
     await telemetry_manager.broadcast(event)
 
     return event
+@app.post("/api/telemetry/test/reconnect")
+async def test_reconnect():
+    event = create_event(
+        event_type=FederationEventType.CLIENT_CONNECTED,
+        round_number=1,
+        hospital_id="hospital_b",
+        status="online",
+        payload={
+            "reason": "simulated_reconnection",
+            "participants": 3,
+            "total_clients": 3,
+        },
+    )
+
+    await telemetry_manager.broadcast(event)
+    return event
