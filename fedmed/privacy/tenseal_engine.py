@@ -74,6 +74,49 @@ class TenSEALEngine:
     ) -> ts.CKKSVector:
         """Encrypts flattened float values using the local secret context."""
         return ts.ckks_vector(self.context, flat_data)
+    def select_parameters(
+        self,
+        state_dict: dict,
+        encrypted_parameters: List[str],
+    ) -> Tuple[dict, dict]:
+        """Separate model parameters into encrypted and plaintext groups."""
+        encrypted = {}
+        plaintext = {}
+
+        for name, tensor in state_dict.items():
+            if name in encrypted_parameters:
+                encrypted[name] = tensor
+            else:
+                plaintext[name] = tensor
+
+        return encrypted, plaintext
+
+    def prepare_model_parameters(
+        self,
+        state_dict: dict,
+        encrypted_parameters: List[str],
+    ) -> dict:
+        """Prepare selected model parameters for encrypted transmission."""
+        encrypted, plaintext = self.select_parameters(
+            state_dict,
+            encrypted_parameters,
+        )
+
+        prepared = {
+            "encrypted": {},
+            "plaintext": plaintext,
+        }
+
+        for name, tensor in encrypted.items():
+            flat_data, shape = self.flatten_tensor(tensor)
+            ciphertext = self.encrypt_flat_tensor(flat_data)
+
+            prepared["encrypted"][name] = {
+                "ciphertext": self.serialize_ciphertext(ciphertext),
+                "shape": tuple(shape),
+            }
+
+        return prepared
 
     def serialize_ciphertext(
         self, enc_vector: ts.CKKSVector
