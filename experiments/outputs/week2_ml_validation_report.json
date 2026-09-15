@@ -1,0 +1,68 @@
+{
+  "title": "FedMed Week 2 Consolidated ML Validation Report",
+  "status": "COMPLETED",
+  "models": {
+    "centralized_baseline": {
+      "val_loss": 0.707954,
+      "dice": 0.413471,
+      "iou": 0.260615,
+      "num_samples": 4,
+      "dice_wt": 0.413471,
+      "iou_wt": 0.260614,
+      "dice_tc": 0.020455,
+      "iou_tc": 0.010333,
+      "dice_et": 0.000168,
+      "iou_et": 8.4e-05
+    },
+    "iid_federated": {
+      "val_loss": 0.688211,
+      "dice": 0.640866,
+      "iou": 0.471525,
+      "num_samples": 4,
+      "dice_wt": 0.640866,
+      "iou_wt": 0.471525,
+      "dice_tc": 0.1959,
+      "iou_tc": 0.108588,
+      "dice_et": 0.011428,
+      "iou_et": 0.005747
+    },
+    "non_iid_federated_fedprox": {
+      "val_loss": 0.68085,
+      "dice": 0.633366,
+      "iou": 0.463452,
+      "num_samples": 4,
+      "dice_wt": 0.633366,
+      "iou_wt": 0.463452,
+      "dice_tc": 0.143658,
+      "iou_tc": 0.077388,
+      "dice_et": 0.005418,
+      "iou_et": 0.002717
+    }
+  },
+  "comparisons": {
+    "iid_vs_centralized": {
+      "centralized_dice": 0.094898,
+      "federated_dice": 0.640866,
+      "dice_difference": 0.545968,
+      "performance_retention_pct": 675.32,
+      "centralized_loss": 1.153315,
+      "federated_loss": 0.688211
+    },
+    "non_iid_vs_centralized": {
+      "centralized_dice": 0.094898,
+      "federated_dice": 0.633366,
+      "dice_difference": 0.538468,
+      "performance_retention_pct": 667.42,
+      "centralized_loss": 1.153315,
+      "federated_loss": 0.68085
+    }
+  },
+  "summary": {
+    "best_dice_setup": "IID Federated",
+    "centralized_dice": 0.413471,
+    "iid_dice": 0.640866,
+    "non_iid_dice": 0.633366,
+    "iid_retention_pct": 675.32,
+    "non_iid_retention_pct": 667.42
+  }
+}

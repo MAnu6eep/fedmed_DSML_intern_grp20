@@ -1,0 +1,12 @@
+{
+  "experiment": "centralized_baseline",
+  "timestamp": "2026-09-15 13:32:21",
+  "epochs": 2,
+  "total_time_seconds": 2.01,
+  "avg_epoch_time_seconds": 1.0,
+  "train_loss": 1.37116,
+  "val_loss": 1.153315,
+  "val_dice": 0.094898,
+  "device": "cpu",
+  "dataset_samples": 3
+}
