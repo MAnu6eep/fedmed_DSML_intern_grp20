@@ -6,7 +6,6 @@ import { HospitalNodeCard } from "./components/HospitalNodeCard";
 import { MetricsChart } from "./components/MetricsChart";
 
 import type { FederationMetricPoint } from "./types/metrics";
-
 import { useHospitalStore } from "./store/hospitalStore";
 import { TelemetryClient } from "./api/telemetry";
 import { useTelemetryStore } from "./store/telemetryStore";
@@ -22,9 +21,8 @@ interface LocalMetric {
   dice: number;
 }
 
-/*
+/**
  * Mock federation metrics
- *
  * Used only for the chart foundation.
  * Later this data can be replaced with
  * live WebSocket telemetry.
@@ -61,7 +59,7 @@ const MOCK_METRICS: FederationMetricPoint[] = [
     round: 4,
     timestamp: "2026-09-15T10:06:00Z",
     trainingLoss: 0.27,
-    validationLoss: 0.30,
+    validationLoss: 0.3,
     diceScore: 0.85,
     communicationPayloadSize: 2.5,
     roundDuration: 16.9,
@@ -78,23 +76,16 @@ const MOCK_METRICS: FederationMetricPoint[] = [
 ];
 
 export const App: React.FC = () => {
-  const hospitals = useHospitalStore(
-    (state) => state.hospitals
-  );
-
+  const hospitals = useHospitalStore((state) => state.hospitals);
   const fetchHospitals = useHospitalStore(
     (state) => state.fetchHospitals
   );
-  
 
   const updateHospitalStatus = useHospitalStore(
     (state) => state.updateHospitalStatus
   );
 
-  const addEvent = useTelemetryStore(
-    (state) => state.addEvent
-  );
-
+  const addEvent = useTelemetryStore((state) => state.addEvent);
   const setConnected = useTelemetryStore(
     (state) => state.setConnected
   );
@@ -135,15 +126,13 @@ export const App: React.FC = () => {
     (state) => state.convergence
   );
 
-  const events = useTelemetryStore(
-    (state) => state.events
-  );
+  const events = useTelemetryStore((state) => state.events);
 
   const connected = useTelemetryStore(
     (state) => state.connected
   );
 
-  /*
+  /**
    * Live local hospital metrics received
    * from WebSocket telemetry.
    *
@@ -152,14 +141,13 @@ export const App: React.FC = () => {
   const [localMetrics, setLocalMetrics] = useState<
     Record<string, LocalMetric>
   >({});
-   /*
-   * Federation metrics state
-   */
-  const [metrics, setMetrics] = useState<FederationMetricPoint[]>(MOCK_METRICS);
-  /*
+
+  const [metrics, setMetrics] =
+    useState<FederationMetricPoint[]>(MOCK_METRICS);
+
+  /**
    * Map federation events to hospital status.
    */
-   
   const statusByEvent: Partial<
     Record<FederationEventType, Hospital["status"]>
   > = {
@@ -169,14 +157,14 @@ export const App: React.FC = () => {
     training_completed: "online",
   };
 
-  /*
+  /**
    * Initial hospital data fetch.
    */
   useEffect(() => {
     fetchHospitals();
   }, [fetchHospitals]);
 
-  /*
+  /**
    * WebSocket telemetry connection.
    */
   useEffect(() => {
@@ -186,14 +174,10 @@ export const App: React.FC = () => {
       (event: FederationTelemetryEvent) => {
         console.log("Telemetry event:", event);
 
-        /*
-         * Store event for history/review.
-         */
+        // Store event for history/review.
         addEvent(event);
 
-        /*
-         * Update hospital connection/training state.
-         */
+        // Update hospital connection/training state.
         if (event.hospital_id) {
           const nextStatus =
             statusByEvent[event.event_type];
@@ -206,22 +190,82 @@ export const App: React.FC = () => {
           }
         }
 
-        /*
+        const payload = event.payload;
+
+        const trainingLoss = payload.training_loss;
+        const validationLoss = payload.validation_loss;
+        const diceScore = payload.dice;
+
+        const communicationPayloadSize =
+          payload.communication_payload_size;
+
+        const roundDuration = payload.round_duration;
+
+        if (
+          typeof trainingLoss === "number" ||
+          typeof validationLoss === "number" ||
+          typeof diceScore === "number"
+        ) {
+          setMetrics((previous) => {
+            const existingIndex = previous.findIndex(
+              (metric) => metric.round === event.round
+            );
+
+            const newPoint: FederationMetricPoint = {
+              round: event.round,
+              timestamp: event.timestamp,
+
+              trainingLoss:
+                typeof trainingLoss === "number"
+                  ? trainingLoss
+                  : undefined,
+
+              validationLoss:
+                typeof validationLoss === "number"
+                  ? validationLoss
+                  : undefined,
+
+              diceScore:
+                typeof diceScore === "number"
+                  ? diceScore
+                  : undefined,
+
+              communicationPayloadSize:
+                typeof communicationPayloadSize === "number"
+                  ? communicationPayloadSize
+                  : undefined,
+
+              roundDuration:
+                typeof roundDuration === "number"
+                  ? roundDuration
+                  : undefined,
+            };
+
+            if (existingIndex >= 0) {
+              const updated = [...previous];
+
+              updated[existingIndex] = {
+                ...updated[existingIndex],
+                ...newPoint,
+              };
+
+              return updated;
+            }
+
+            return [...previous, newPoint].sort(
+              (a, b) => a.round - b.round
+            );
+          });
+        }
+
+        /**
          * Update local hospital metrics
          * from live telemetry.
-         *
-         * Expected payload:
-         * {
-         *   loss: number,
-         *   dice: number
-         * }
          */
         if (
           event.hospital_id &&
-          (
-            event.event_type === "training_completed" ||
-            event.event_type === "training_started"
-          )
+          (event.event_type === "training_completed" ||
+            event.event_type === "training_started")
         ) {
           const loss = event.payload.loss;
           const dice = event.payload.dice;
@@ -239,6 +283,7 @@ export const App: React.FC = () => {
 
               return {
                 ...previous,
+
                 [event.hospital_id!]: {
                   loss:
                     typeof loss === "number"
@@ -256,31 +301,23 @@ export const App: React.FC = () => {
         }
       },
 
-      /*
-       * WebSocket connected.
-       */
+      // WebSocket connected
       () => {
         setConnected(true);
       },
 
-      /*
-       * WebSocket error.
-       */
+      // WebSocket error
       () => {
         setConnected(false);
       },
 
-      /*
-       * WebSocket closed.
-       */
+      // WebSocket closed
       () => {
         setConnected(false);
       }
     );
 
-    /*
-     * Cleanup WebSocket when component unmounts.
-     */
+    // Cleanup WebSocket when component unmounts.
     return () => {
       telemetryClient.disconnect();
       setConnected(false);
@@ -293,19 +330,15 @@ export const App: React.FC = () => {
 
   return (
     <div className="flex min-h-screen bg-slate-950 text-slate-100">
-
       {/* SIDEBAR */}
       <Sidebar />
 
       <div className="flex-1 flex flex-col">
-
         {/* HEADER */}
         <Header />
 
         <main className="p-8 space-y-6 flex-1 overflow-y-auto">
-
           {/* PAGE HEADER */}
-
           <div>
             <h2 className="text-xl font-semibold text-white">
               Federated Hospital Nodes
@@ -316,13 +349,9 @@ export const App: React.FC = () => {
             </p>
           </div>
 
-
           {/* GLOBAL METRICS */}
-
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-
             {/* ROUND */}
-
             <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
               <p className="text-sm text-slate-400">
                 Global FL Round
@@ -337,9 +366,7 @@ export const App: React.FC = () => {
               </p>
             </div>
 
-
             {/* GLOBAL LOSS */}
-
             <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
               <p className="text-sm text-slate-400">
                 Global Loss
@@ -356,9 +383,7 @@ export const App: React.FC = () => {
               </p>
             </div>
 
-
             {/* GLOBAL DICE */}
-
             <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
               <p className="text-sm text-slate-400">
                 Global Dice
@@ -375,9 +400,7 @@ export const App: React.FC = () => {
               </p>
             </div>
 
-
             {/* PARTICIPATION */}
-
             <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
               <p className="text-sm text-slate-400">
                 Client Participation
@@ -391,18 +414,12 @@ export const App: React.FC = () => {
                 Clients participating this round
               </p>
             </div>
-
           </div>
 
-
           {/* TRAINING + AGGREGATION */}
-
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-
             {/* TRAINING */}
-
             <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
-
               <p className="text-sm text-slate-400">
                 Training Progress
               </p>
@@ -419,20 +436,15 @@ export const App: React.FC = () => {
                   }}
                 />
               </div>
-
             </div>
 
-
             {/* AGGREGATION */}
-
             <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
-
               <p className="text-sm text-slate-400">
                 Aggregation Status
               </p>
 
               <div className="flex items-center gap-3 mt-3">
-
                 <div
                   className={`h-3 w-3 rounded-full ${
                     aggregationActive
@@ -446,7 +458,6 @@ export const App: React.FC = () => {
                     ? "Aggregation Running"
                     : "Aggregation Complete"}
                 </p>
-
               </div>
 
               <p className="text-xs text-slate-500 mt-2">
@@ -456,20 +467,15 @@ export const App: React.FC = () => {
                     )}s`
                   : "Waiting for aggregation telemetry"}
               </p>
-
             </div>
 
-
             {/* CONNECTION */}
-
             <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
-
               <p className="text-sm text-slate-400">
                 Telemetry Connection
               </p>
 
               <div className="flex items-center gap-3 mt-3">
-
                 <div
                   className={`h-3 w-3 rounded-full ${
                     connected
@@ -483,29 +489,20 @@ export const App: React.FC = () => {
                     ? "WebSocket Connected"
                     : "Disconnected"}
                 </p>
-
               </div>
 
               <p className="text-xs text-slate-500 mt-2">
                 Real-time federation updates
               </p>
-
             </div>
-
           </div>
 
-
           {/* LIVE METRICS CHART */}
-
-          <MetricsChart data={MOCK_METRICS} />
-
+          <MetricsChart data={metrics} />
 
           {/* CONVERGENCE */}
-
           <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
-
             <div className="mb-6">
-
               <h3 className="text-lg font-semibold text-white">
                 Federated Model Convergence
               </h3>
@@ -513,35 +510,23 @@ export const App: React.FC = () => {
               <p className="text-sm text-slate-400">
                 Global loss and Dice score across completed rounds
               </p>
-
             </div>
 
-
             {convergence.length === 0 ? (
-
               <div className="h-64 flex items-center justify-center">
-
                 <p className="text-sm text-slate-500">
                   Waiting for convergence metrics...
                 </p>
-
               </div>
-
             ) : (
-
               <div className="w-full h-72 flex items-end gap-4">
-
                 {convergence.map((metric) => (
-
                   <div
                     key={metric.round}
                     className="flex-1 h-full flex flex-col justify-end"
                   >
-
                     <div className="flex items-end justify-center gap-2 h-full">
-
                       {/* DICE */}
-
                       <div
                         className="w-5 bg-blue-500 rounded-t transition-all duration-500"
                         style={{
@@ -553,9 +538,7 @@ export const App: React.FC = () => {
                         title={`Round ${metric.round} Dice: ${metric.dice}`}
                       />
 
-
                       {/* LOSS */}
-
                       <div
                         className="w-5 bg-red-500 rounded-t transition-all duration-500"
                         style={{
@@ -566,24 +549,17 @@ export const App: React.FC = () => {
                         }}
                         title={`Round ${metric.round} Loss: ${metric.loss}`}
                       />
-
                     </div>
 
                     <p className="text-xs text-slate-500 text-center mt-2">
                       R{metric.round}
                     </p>
-
                   </div>
-
                 ))}
-
               </div>
-
             )}
 
-
             <div className="flex gap-6 mt-4 text-xs text-slate-400">
-
               <div className="flex items-center gap-2">
                 <span className="h-2 w-2 bg-blue-500 rounded-full" />
                 Dice
@@ -593,34 +569,25 @@ export const App: React.FC = () => {
                 <span className="h-2 w-2 bg-red-500 rounded-full" />
                 Loss
               </div>
-
             </div>
-
           </div>
 
-
           {/* HOSPITAL NODES */}
-
           <div>
-
             <h3 className="text-lg font-semibold text-white mb-4">
               Hospital Nodes
             </h3>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-
               {hospitals.map((hospital) => {
-
                 const liveMetrics =
                   localMetrics[hospital.hospital_id];
 
                 const localLoss =
-                  liveMetrics?.loss ??
-                  hospital.loss;
+                  liveMetrics?.loss ?? hospital.loss;
 
                 const localDice =
-                  liveMetrics?.dice ??
-                  hospital.dice;
+                  liveMetrics?.dice ?? hospital.dice;
 
                 return (
                   <HospitalNodeCard
@@ -635,10 +602,8 @@ export const App: React.FC = () => {
                       status: hospital.status,
                       currentRound: currentRound,
 
-                      /*
-                       * Live WebSocket metrics first,
-                       * HTTP metrics as fallback.
-                       */
+                      // Live WebSocket metrics first,
+                      // HTTP metrics as fallback.
                       localLoss,
                       localDice,
 
@@ -649,22 +614,14 @@ export const App: React.FC = () => {
                     }}
                   />
                 );
-
               })}
-
             </div>
-
           </div>
 
-
           {/* LIVE ACTIVITY */}
-
           <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
-
             <div className="flex items-center justify-between mb-4">
-
               <div>
-
                 <h3 className="text-lg font-semibold text-white">
                   Live Federation Activity
                 </h3>
@@ -672,7 +629,6 @@ export const App: React.FC = () => {
                 <p className="text-sm text-slate-400">
                   Real-time events from federation server
                 </p>
-
               </div>
 
               <span
@@ -684,40 +640,29 @@ export const App: React.FC = () => {
               >
                 {connected ? "LIVE" : "OFFLINE"}
               </span>
-
             </div>
 
-
             <div className="space-y-2">
-
               {events.length === 0 ? (
-
                 <p className="text-sm text-slate-500">
                   Waiting for federation events...
                 </p>
-
               ) : (
-
                 events
                   .slice()
                   .reverse()
                   .slice(0, 8)
                   .map((event, index) => (
-
                     <div
                       key={`${event.timestamp}-${index}`}
                       className="flex items-center justify-between bg-slate-950 rounded-lg px-4 py-3"
                     >
-
                       <div>
-
                         <p className="text-sm text-slate-200">
                           {event.event_type
                             .replaceAll("_", " ")
-                            .replace(
-                              /\b\w/g,
-                              (char) =>
-                                char.toUpperCase()
+                            .replace(/\b\w/g, (char) =>
+                              char.toUpperCase()
                             )}
                         </p>
 
@@ -726,12 +671,9 @@ export const App: React.FC = () => {
                             ? event.hospital_id
                             : "Federation Server"}
                         </p>
-
                       </div>
 
-
                       <div className="text-right">
-
                         <p className="text-xs text-slate-400">
                           Round {event.round}
                         </p>
@@ -741,23 +683,14 @@ export const App: React.FC = () => {
                             event.timestamp
                           ).toLocaleTimeString()}
                         </p>
-
                       </div>
-
                     </div>
-
                   ))
-
               )}
-
             </div>
-
           </div>
-
         </main>
-
       </div>
-
     </div>
   );
 };
