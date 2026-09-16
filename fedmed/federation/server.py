@@ -1,11 +1,11 @@
 """fedmed/federation/server.py
 
-Flower server configuration for federated model training
-using FedAvg, FedProx, and SecAgg+ privacy-preserving workflows.
+Flower server configuration for FedAvg, FedProx, SCAFFOLD,
+and SecAgg+ federated learning workflows.
 """
 
 from collections import OrderedDict
-from typing import Callable, Dict, List, Optional, Tuple, Union
+from typing import Callable, Dict, List, Optional, Tuple
 
 import flwr as fl
 import numpy as np
@@ -18,37 +18,44 @@ from flwr.common import (
     NDArrays,
     Parameters,
     ndarrays_to_parameters,
+    parameters_to_ndarrays,
+    FitIns,
 )
-
-try:
-    from flwr.serverapp import Grid
-except ImportError:
-    try:
-        from flwr.server import Grid
-    except ImportError:
-        Grid = None
-
+from flwr.server.client_proxy import ClientProxy
+from flwr.server.strategy import FedAvg, FedProx
 from flwr.server import (
     LegacyContext,
     ServerApp,
     ServerConfig,
 )
-from flwr.server.strategy import FedAvg, FedProx
 from flwr.server.workflow import (
     DefaultWorkflow,
     SecAggPlusWorkflow,
 )
 
 from fedmed.core.model import get_model
+from fedmed.federation.scaffold import (
+    SCAFFOLDConfig,
+    ControlVariateState,
+    deserialize_control_variate,
+    serialize_control_variate,
+)
+
+
+# ---------------------------------------------------------------------------
+# Metrics
+# ---------------------------------------------------------------------------
 
 
 def weighted_average_metrics(
     metrics: List[Tuple[int, Metrics]],
 ) -> Metrics:
-    """Aggregate local validation metrics across hospital nodes.
-    Computes weighted averages strictly for numerical metrics, filtering out metadata.
-    """
-    total_examples = sum(num_examples for num_examples, _ in metrics)
+    """Aggregate numerical metrics using example-weighted averages."""
+
+    total_examples = sum(
+        num_examples
+        for num_examples, _ in metrics
+    )
 
     if total_examples == 0:
         return {}
@@ -58,7 +65,10 @@ def weighted_average_metrics(
 
     for _, metric in metrics:
         for key, value in metric.items():
-            if isinstance(value, (int, float)) and not isinstance(value, bool):
+            if (
+                isinstance(value, (int, float))
+                and not isinstance(value, bool)
+            ):
                 metric_keys.add(key)
 
     for key in metric_keys:
@@ -66,27 +76,57 @@ def weighted_average_metrics(
         valid_metric = False
 
         for num_examples, metric in metrics:
-            if key not in metric:
-                continue
+            value = metric.get(key)
 
-            value = metric[key]
-            if isinstance(value, (int, float)) and not isinstance(value, bool):
-                weighted_sum += num_examples * float(value)
+            if (
+                isinstance(value, (int, float))
+                and not isinstance(value, bool)
+            ):
+                weighted_sum += (
+                    num_examples * float(value)
+                )
                 valid_metric = True
 
         if valid_metric:
-            aggregated_metrics[key] = round(weighted_sum / total_examples, 6)
+            aggregated_metrics[key] = round(
+                weighted_sum / total_examples,
+                6,
+            )
 
     return aggregated_metrics
+
+
+# ---------------------------------------------------------------------------
+# Model parameter helpers
+# ---------------------------------------------------------------------------
 
 
 def get_parameters(
     model: nn.Module,
 ) -> List[np.ndarray]:
-    """Extract model state as NumPy arrays."""
+    """Extract complete model state as NumPy arrays."""
+
     return [
-        value.detach().cpu().numpy()
+        value.detach()
+        .cpu()
+        .numpy()
+        .copy()
         for value in model.state_dict().values()
+    ]
+
+
+def get_trainable_parameters(
+    model: nn.Module,
+) -> List[np.ndarray]:
+    """Extract only trainable model parameters."""
+
+    return [
+        parameter.detach()
+        .cpu()
+        .numpy()
+        .copy()
+        for parameter in model.parameters()
+        if parameter.requires_grad
     ]
 
 
@@ -94,7 +134,8 @@ def set_parameters(
     model: nn.Module,
     parameters: List[np.ndarray],
 ) -> None:
-    """Load NumPy parameters into a PyTorch model."""
+    """Load NumPy model state into PyTorch model."""
+
     params_dict = zip(
         model.state_dict().keys(),
         parameters,
@@ -117,13 +158,23 @@ def get_initial_parameters(
     model: nn.Module,
 ) -> Parameters:
     """Convert model parameters into Flower Parameters."""
-    ndarrays: NDArrays = get_parameters(model)
-    return ndarrays_to_parameters(ndarrays)
+
+    return ndarrays_to_parameters(
+        get_parameters(model)
+    )
+
+
+# ---------------------------------------------------------------------------
+# SecAgg+
+# ---------------------------------------------------------------------------
 
 
 def create_secagg_config():
     """Create the project SecAgg+ configuration."""
-    from fedmed.privacy.secagg_config import SecAggPlusConfig
+
+    from fedmed.privacy.secagg_config import (
+        SecAggPlusConfig,
+    )
 
     return SecAggPlusConfig(
         num_clients=3,
@@ -137,23 +188,37 @@ def create_secagg_config():
 
 def create_secagg_requirements() -> Dict[str, int]:
     """Create SecAgg+ client participation requirements."""
-    from fedmed.privacy.secagg_config import SecAggPlusConfig
-    from fedmed.privacy.secure_aggregation import SecureAggregationManager
+
+    from fedmed.privacy.secagg_config import (
+        SecAggPlusConfig,
+    )
+    from fedmed.privacy.secure_aggregation import (
+        SecureAggregationManager,
+    )
 
     secagg_config = SecAggPlusConfig(
         num_clients=3,
         threshold=2,
     )
 
-    secagg_manager = SecureAggregationManager(secagg_config)
+    secagg_manager = SecureAggregationManager(
+        secagg_config
+    )
+
     return secagg_manager.get_round_requirements()
+
+
+# ---------------------------------------------------------------------------
+# FedAvg
+# ---------------------------------------------------------------------------
 
 
 def create_strategy(
     initial_parameters: Optional[Parameters] = None,
     evaluate_fn: Optional[Callable] = None,
 ) -> FedAvg:
-    """Create the FedAvg strategy used by the SecAgg+ workflow."""
+    """Create the existing FedAvg strategy."""
+
     config = create_secagg_config()
 
     return FedAvg(
@@ -164,26 +229,248 @@ def create_strategy(
         min_available_clients=config.num_clients,
         initial_parameters=initial_parameters,
         evaluate_fn=evaluate_fn,
-        evaluate_metrics_aggregation_fn=weighted_average_metrics,
-        fit_metrics_aggregation_fn=weighted_average_metrics,
+        evaluate_metrics_aggregation_fn=(
+            weighted_average_metrics
+        ),
+        fit_metrics_aggregation_fn=(
+            weighted_average_metrics
+        ),
     )
 
-def create_server_strategy(
+
+# ---------------------------------------------------------------------------
+# SCAFFOLD
+# ---------------------------------------------------------------------------
+
+
+class SCAFFOLDStrategy(FedAvg):
+    """Flower FedAvg strategy extended with SCAFFOLD control variates."""
+
+    def __init__(
+        self,
+        initial_parameters: Optional[Parameters] = None,
+        scaffold_config: Optional[SCAFFOLDConfig] = None,
+        trainable_parameters: Optional[NDArrays] = None,
+        **kwargs,
+    ):
+        config = (
+            scaffold_config
+            or SCAFFOLDConfig()
+        )
+
+        super().__init__(
+            fraction_fit=config.fraction_fit,
+            fraction_evaluate=config.fraction_evaluate,
+            min_fit_clients=config.min_fit_clients,
+            min_evaluate_clients=(
+                config.min_evaluate_clients
+            ),
+            min_available_clients=(
+                config.min_available_clients
+            ),
+            initial_parameters=initial_parameters,
+            fit_metrics_aggregation_fn=(
+                weighted_average_metrics
+            ),
+            evaluate_metrics_aggregation_fn=(
+                weighted_average_metrics
+            ),
+            **kwargs,
+        )
+
+        self.scaffold_config = config
+
+        self.control_variates = (
+            ControlVariateState()
+        )
+
+        if trainable_parameters is not None:
+            self.control_variates.initialize(
+                parameters=trainable_parameters
+            )
+
+    def configure_fit(
+        self,
+        server_round: int,
+        parameters: Parameters,
+        client_manager,
+    ):
+        """Send global model and server control variate to clients."""
+
+        client_config_pairs = (
+            super().configure_fit(
+                server_round,
+                parameters,
+                client_manager,
+            )
+        )
+
+        server_control = (
+            self.control_variates.server
+        )
+
+        if not server_control.is_initialized():
+            # Lazily initialize if needed.
+            model = get_model(
+                in_channels=4,
+                out_channels=1,
+            )
+
+            server_control.initialize(
+                get_trainable_parameters(model)
+            )
+
+        control_bytes = serialize_control_variate(
+            server_control.get_values()
+        )
+
+        configured = []
+
+        for client, fit_ins in client_config_pairs:
+            config = dict(
+                fit_ins.config
+            )
+
+            config.update(
+                {
+                    "scaffold": True,
+                    "learning_rate": (
+                        self.scaffold_config.learning_rate
+                    ),
+                    "local_epochs": (
+                        self.scaffold_config.local_epochs
+                    ),
+                    "server_control_variate": (
+                        control_bytes
+                    ),
+                }
+            )
+
+            configured.append(
+                (
+                    client,
+                    FitIns(
+                        parameters=fit_ins.parameters,
+                        config=config,
+                    ),
+                )
+            )
+
+        return configured
+
+    def aggregate_fit(
+        self,
+        server_round: int,
+        results,
+        failures,
+    ):
+        """Aggregate model parameters and update server control variate."""
+
+        # First perform normal FedAvg aggregation.
+        aggregated_parameters, metrics = (
+            super().aggregate_fit(
+                server_round,
+                results,
+                failures,
+            )
+        )
+
+        if aggregated_parameters is None:
+            return None, metrics
+
+        client_ids = []
+        client_control_variates = []
+
+        for _, fit_res in results:
+            client_id = fit_res.metrics.get(
+                "scaffold_client_id"
+            )
+
+            control_bytes = fit_res.metrics.get(
+                "scaffold_control_variate"
+            )
+
+            if (
+                isinstance(client_id, str)
+                and isinstance(control_bytes, bytes)
+            ):
+                client_cv = (
+                    deserialize_control_variate(
+                        control_bytes
+                    )
+                )
+
+                client_ids.append(client_id)
+                client_control_variates.append(
+                    client_cv
+                )
+
+        # Update server control variate.
+        if client_control_variates:
+            self.control_variates.server.update(
+                client_control_variates=(
+                    client_control_variates
+                ),
+                learning_rate=(
+                    self.scaffold_config
+                    .server_learning_rate
+                ),
+            )
+
+        metrics = dict(metrics)
+
+        metrics.update(
+            {
+                "scaffold": True,
+                "scaffold_round": server_round,
+                "scaffold_clients": len(
+                    client_control_variates
+                ),
+            }
+        )
+
+        return aggregated_parameters, metrics
+
+
+def create_scaffold_strategy(
     initial_parameters: Optional[Parameters] = None,
-    fraction_fit: float = 1.0,
-    min_fit_clients: int = 3,
-    min_available_clients: int = 3,
-) -> FedAvg:
-    return FedAvg(
-        fraction_fit=fraction_fit,
-        fraction_evaluate=1.0,
-        min_fit_clients=min_fit_clients,
-        min_evaluate_clients=min_fit_clients,
-        min_available_clients=min_available_clients,
-        initial_parameters=initial_parameters,
-        evaluate_metrics_aggregation_fn=weighted_average_metrics,
-        fit_metrics_aggregation_fn=weighted_average_metrics,
+    evaluate_fn: Optional[Callable] = None,
+) -> SCAFFOLDStrategy:
+    """Create the SCAFFOLD strategy."""
+
+    model = get_model(
+        in_channels=4,
+        out_channels=1,
     )
+
+    trainable_parameters = (
+        get_trainable_parameters(model)
+    )
+
+    config = SCAFFOLDConfig(
+        fraction_fit=1.0,
+        fraction_evaluate=1.0,
+        min_fit_clients=3,
+        min_evaluate_clients=3,
+        min_available_clients=3,
+        local_epochs=1,
+        learning_rate=1e-4,
+        server_learning_rate=1.0,
+        client_learning_rate=1.0,
+    )
+
+    return SCAFFOLDStrategy(
+        initial_parameters=initial_parameters,
+        scaffold_config=config,
+        trainable_parameters=trainable_parameters,
+        evaluate_fn=evaluate_fn,
+    )
+
+
+# ---------------------------------------------------------------------------
+# FedProx
+# ---------------------------------------------------------------------------
+
 
 def create_fedprox_strategy(
     proximal_mu: float = 0.01,
@@ -193,22 +480,31 @@ def create_fedprox_strategy(
     min_available_clients: int = 3,
     evaluate_fn: Optional[Callable] = None,
 ) -> FedProx:
-    """Create a configurable FedProx strategy for non-IID datasets."""
+    """Create the existing FedProx strategy."""
+
     if proximal_mu < 0:
-        raise ValueError("proximal_mu must be non-negative.")
+        raise ValueError(
+            "proximal_mu must be non-negative."
+        )
 
     return FedProx(
         fraction_fit=fraction_fit,
         fraction_evaluate=1.0,
         min_fit_clients=min_fit_clients,
-        min_evaluate_clients=min_available_clients,
+        min_evaluate_clients=min_fit_clients,
         min_available_clients=min_available_clients,
         initial_parameters=initial_parameters,
         evaluate_fn=evaluate_fn,
-        evaluate_metrics_aggregation_fn=weighted_average_metrics,
-        fit_metrics_aggregation_fn=weighted_average_metrics,
+        evaluate_metrics_aggregation_fn=(
+            weighted_average_metrics
+        ),
+        fit_metrics_aggregation_fn=(
+            weighted_average_metrics
+        ),
         proximal_mu=proximal_mu,
     )
+
+
 def create_server_strategy(
     strategy_name: str = "fedavg",
     proximal_mu: float = 0.01,
@@ -218,7 +514,7 @@ def create_server_strategy(
     min_available_clients: int = 3,
     evaluate_fn: Optional[Callable] = None,
 ):
-    """Create a server strategy for FedAvg/FedProx experiments."""
+    """Create FedAvg, FedProx, or SCAFFOLD strategy."""
 
     strategy_name = strategy_name.lower()
 
@@ -231,8 +527,12 @@ def create_server_strategy(
             min_available_clients=min_available_clients,
             initial_parameters=initial_parameters,
             evaluate_fn=evaluate_fn,
-            fit_metrics_aggregation_fn=weighted_average_metrics,
-            evaluate_metrics_aggregation_fn=weighted_average_metrics,
+            fit_metrics_aggregation_fn=(
+                weighted_average_metrics
+            ),
+            evaluate_metrics_aggregation_fn=(
+                weighted_average_metrics
+            ),
         )
 
     if strategy_name == "fedprox":
@@ -245,14 +545,26 @@ def create_server_strategy(
             evaluate_fn=evaluate_fn,
         )
 
+    if strategy_name == "scaffold":
+        return create_scaffold_strategy(
+            initial_parameters=initial_parameters,
+            evaluate_fn=evaluate_fn,
+        )
+
     raise ValueError(
         f"Unsupported strategy: {strategy_name}. "
-        "Expected 'fedavg' or 'fedprox'."
+        "Expected 'fedavg', 'fedprox', or 'scaffold'."
     )
+
+
+# ---------------------------------------------------------------------------
+# SecAgg+ workflow
+# ---------------------------------------------------------------------------
 
 
 def create_secagg_workflow() -> SecAggPlusWorkflow:
     """Create the Flower SecAgg+ workflow."""
+
     config = create_secagg_config()
 
     return SecAggPlusWorkflow(
@@ -260,17 +572,25 @@ def create_secagg_workflow() -> SecAggPlusWorkflow:
         reconstruction_threshold=config.threshold,
         clipping_range=config.clipping_bound,
         modulus_range=config.modulus_range,
-        quantization_range=2**config.quantization_bits,
+        quantization_range=(
+            2**config.quantization_bits
+        ),
     )
 
 
 def create_server_config(
     num_rounds: int = 20,
 ) -> fl.server.ServerConfig:
-    """Create the Flower server configuration."""
+    """Create Flower server configuration."""
+
     return fl.server.ServerConfig(
         num_rounds=num_rounds,
     )
+
+
+# ---------------------------------------------------------------------------
+# ServerApp
+# ---------------------------------------------------------------------------
 
 
 app = ServerApp()
@@ -281,18 +601,28 @@ def main(
     grid: Optional[object],
     context: Context,
 ) -> None:
-    """Run federated learning with the project's SecAgg+ workflow."""
+    """Run the selected federated learning strategy."""
+
     secagg_config = create_secagg_config()
 
-    # Create the initial global model
     model = get_model(
         in_channels=4,
         out_channels=1,
     )
 
-    initial_parameters = get_initial_parameters(model)
+    initial_parameters = get_initial_parameters(
+        model
+    )
 
-    strategy = create_strategy(
+    strategy_name = str(
+        context.run_config.get(
+            "strategy",
+            "fedavg",
+        )
+    ).lower()
+
+    strategy = create_server_strategy(
+        strategy_name=strategy_name,
         initial_parameters=initial_parameters,
     )
 
@@ -303,7 +633,6 @@ def main(
         )
     )
 
-    # SecAgg+ is implemented as a workflow around FedAvg
     legacy_context = LegacyContext(
         context=context,
         config=ServerConfig(
@@ -312,31 +641,50 @@ def main(
         strategy=strategy,
     )
 
-    workflow = DefaultWorkflow(
-        fit_workflow=create_secagg_workflow(),
+    print(
+        "\n===== FedMed Federated Configuration ====="
+    )
+    print(
+        f"Strategy: {strategy_name}"
+    )
+    print(
+        f"Clients: {secagg_config.num_clients}"
+    )
+    print(
+        f"Federated rounds: {num_rounds}"
+    )
+    print(
+        "===========================================\n"
     )
 
-    print("\n===== FedMed SecAgg+ Configuration =====")
-    print(f"Clients: {secagg_config.num_clients}")
-    print(f"Threshold: {secagg_config.threshold}")
-    print(f"Clipping bound: {secagg_config.clipping_bound}")
-    print(f"Quantization bits: {secagg_config.quantization_bits}")
-    print(f"Dropout recovery: {secagg_config.enable_dropouts}")
-    print(f"Federated rounds: {num_rounds}")
-    print("========================================\n")
+    # Keep SecAgg+ workflow for the existing FedAvg path.
+    if strategy_name == "fedavg":
+        workflow = DefaultWorkflow(
+            fit_workflow=create_secagg_workflow(),
+        )
+    else:
+        # FedProx/SCAFFOLD use the standard Flower workflow.
+        workflow = DefaultWorkflow()
 
-    # Execute the SecAgg+ workflow
     workflow(
         grid,
         legacy_context,
     )
 
 
+# ---------------------------------------------------------------------------
+# Helper API
+# ---------------------------------------------------------------------------
+
+
 def build_server_app(
-    strategy: Optional[fl.server.strategy.Strategy] = None,
+    strategy: Optional[
+        fl.server.strategy.Strategy
+    ] = None,
     num_rounds: int = 20,
 ) -> ServerApp:
-    """Build a Flower ServerApp for callers that use the helper API."""
+    """Build a Flower ServerApp."""
+
     if strategy is None:
         strategy = create_strategy()
 
