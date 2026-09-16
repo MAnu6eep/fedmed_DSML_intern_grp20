@@ -362,4 +362,22 @@ async def test_reconnect():
     )
 
     await telemetry_manager.broadcast(event)
+    return event@app.post("/api/telemetry/test/metrics")
+async def test_metrics_event():
+    event = create_event(
+        event_type=FederationEventType.TRAINING_COMPLETED,
+        round_number=6,
+        hospital_id="hospital_b",
+        status="online",
+        payload={
+            "training_loss": 0.21,
+            "validation_loss": 0.25,
+            "dice": 0.90,
+            "communication_payload_size": 2.8,
+            "round_duration": 16.2,
+        },
+    )
+
+    await telemetry_manager.broadcast(event)
+
     return event

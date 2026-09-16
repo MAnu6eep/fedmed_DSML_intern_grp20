@@ -25,7 +25,7 @@ export const MetricsChart: React.FC<MetricsChartProps> = ({ data }) => {
         </h3>
 
         <p className="text-sm text-slate-400">
-          Training and validation metrics across federation rounds
+          Live training metrics across federation rounds
         </p>
       </div>
 
@@ -59,6 +59,7 @@ export const MetricsChart: React.FC<MetricsChartProps> = ({ data }) => {
               stroke="#ef4444"
               strokeWidth={2}
               dot
+              connectNulls={false}
             />
 
             <Line
@@ -68,6 +69,7 @@ export const MetricsChart: React.FC<MetricsChartProps> = ({ data }) => {
               stroke="#f97316"
               strokeWidth={2}
               dot
+              connectNulls={false}
             />
 
             <Line
@@ -77,6 +79,7 @@ export const MetricsChart: React.FC<MetricsChartProps> = ({ data }) => {
               stroke="#22c55e"
               strokeWidth={2}
               dot
+              connectNulls={false}
             />
           </LineChart>
         </ResponsiveContainer>

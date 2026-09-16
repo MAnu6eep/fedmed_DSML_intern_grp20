@@ -85,6 +85,7 @@ export const App: React.FC = () => {
   const fetchHospitals = useHospitalStore(
     (state) => state.fetchHospitals
   );
+  
 
   const updateHospitalStatus = useHospitalStore(
     (state) => state.updateHospitalStatus
