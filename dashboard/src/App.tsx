@@ -3,6 +3,9 @@ import React, { useEffect, useState } from "react";
 import { Sidebar } from "./components/Sidebar";
 import { Header } from "./components/Header";
 import { HospitalNodeCard } from "./components/HospitalNodeCard";
+import { MetricsChart } from "./components/MetricsChart";
+
+import type { FederationMetricPoint } from "./types/metrics";
 
 import { useHospitalStore } from "./store/hospitalStore";
 import { TelemetryClient } from "./api/telemetry";
@@ -18,6 +21,61 @@ interface LocalMetric {
   loss: number;
   dice: number;
 }
+
+/*
+ * Mock federation metrics
+ *
+ * Used only for the chart foundation.
+ * Later this data can be replaced with
+ * live WebSocket telemetry.
+ */
+const MOCK_METRICS: FederationMetricPoint[] = [
+  {
+    round: 1,
+    timestamp: "2026-09-15T10:00:00Z",
+    trainingLoss: 0.42,
+    validationLoss: 0.45,
+    diceScore: 0.71,
+    communicationPayloadSize: 2.4,
+    roundDuration: 18.2,
+  },
+  {
+    round: 2,
+    timestamp: "2026-09-15T10:02:00Z",
+    trainingLoss: 0.36,
+    validationLoss: 0.39,
+    diceScore: 0.76,
+    communicationPayloadSize: 2.5,
+    roundDuration: 17.8,
+  },
+  {
+    round: 3,
+    timestamp: "2026-09-15T10:04:00Z",
+    trainingLoss: 0.31,
+    validationLoss: 0.34,
+    diceScore: 0.81,
+    communicationPayloadSize: 2.6,
+    roundDuration: 17.4,
+  },
+  {
+    round: 4,
+    timestamp: "2026-09-15T10:06:00Z",
+    trainingLoss: 0.27,
+    validationLoss: 0.30,
+    diceScore: 0.85,
+    communicationPayloadSize: 2.5,
+    roundDuration: 16.9,
+  },
+  {
+    round: 5,
+    timestamp: "2026-09-15T10:08:00Z",
+    trainingLoss: 0.23,
+    validationLoss: 0.27,
+    diceScore: 0.88,
+    communicationPayloadSize: 2.7,
+    roundDuration: 16.5,
+  },
+];
 
 export const App: React.FC = () => {
   const hospitals = useHospitalStore(
@@ -85,14 +143,18 @@ export const App: React.FC = () => {
   );
 
   /*
-   * Live local metrics received from WebSocket.
-   * hospitalStore remains the fallback when no telemetry
-   * has arrived yet.
+   * Live local hospital metrics received
+   * from WebSocket telemetry.
+   *
+   * hospitalStore values are used as fallback.
    */
   const [localMetrics, setLocalMetrics] = useState<
     Record<string, LocalMetric>
   >({});
 
+  /*
+   * Map federation events to hospital status.
+   */
   const statusByEvent: Partial<
     Record<FederationEventType, Hospital["status"]>
   > = {
@@ -102,10 +164,16 @@ export const App: React.FC = () => {
     training_completed: "online",
   };
 
+  /*
+   * Initial hospital data fetch.
+   */
   useEffect(() => {
     fetchHospitals();
   }, [fetchHospitals]);
 
+  /*
+   * WebSocket telemetry connection.
+   */
   useEffect(() => {
     const telemetryClient = new TelemetryClient();
 
@@ -113,11 +181,13 @@ export const App: React.FC = () => {
       (event: FederationTelemetryEvent) => {
         console.log("Telemetry event:", event);
 
-        // Store event for history/review
+        /*
+         * Store event for history/review.
+         */
         addEvent(event);
 
         /*
-         * Update hospital connection/training state
+         * Update hospital connection/training state.
          */
         if (event.hospital_id) {
           const nextStatus =
@@ -132,7 +202,8 @@ export const App: React.FC = () => {
         }
 
         /*
-         * Update LOCAL hospital metrics from live telemetry.
+         * Update local hospital metrics
+         * from live telemetry.
          *
          * Expected payload:
          * {
@@ -142,8 +213,10 @@ export const App: React.FC = () => {
          */
         if (
           event.hospital_id &&
-          (event.event_type === "training_completed" ||
-            event.event_type === "training_started")
+          (
+            event.event_type === "training_completed" ||
+            event.event_type === "training_started"
+          )
         ) {
           const loss = event.payload.loss;
           const dice = event.payload.dice;
@@ -166,6 +239,7 @@ export const App: React.FC = () => {
                     typeof loss === "number"
                       ? loss
                       : existing.loss,
+
                   dice:
                     typeof dice === "number"
                       ? dice
@@ -177,22 +251,31 @@ export const App: React.FC = () => {
         }
       },
 
-      // WebSocket connected
+      /*
+       * WebSocket connected.
+       */
       () => {
         setConnected(true);
       },
 
-      // WebSocket error
+      /*
+       * WebSocket error.
+       */
       () => {
         setConnected(false);
       },
 
-      // WebSocket closed
+      /*
+       * WebSocket closed.
+       */
       () => {
         setConnected(false);
       }
     );
 
+    /*
+     * Cleanup WebSocket when component unmounts.
+     */
     return () => {
       telemetryClient.disconnect();
       setConnected(false);
@@ -206,10 +289,12 @@ export const App: React.FC = () => {
   return (
     <div className="flex min-h-screen bg-slate-950 text-slate-100">
 
+      {/* SIDEBAR */}
       <Sidebar />
 
       <div className="flex-1 flex flex-col">
 
+        {/* HEADER */}
         <Header />
 
         <main className="p-8 space-y-6 flex-1 overflow-y-auto">
@@ -405,6 +490,11 @@ export const App: React.FC = () => {
           </div>
 
 
+          {/* LIVE METRICS CHART */}
+
+          <MetricsChart data={MOCK_METRICS} />
+
+
           {/* CONVERGENCE */}
 
           <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
@@ -421,12 +511,15 @@ export const App: React.FC = () => {
 
             </div>
 
+
             {convergence.length === 0 ? (
 
               <div className="h-64 flex items-center justify-center">
+
                 <p className="text-sm text-slate-500">
                   Waiting for convergence metrics...
                 </p>
+
               </div>
 
             ) : (
@@ -455,6 +548,7 @@ export const App: React.FC = () => {
                         title={`Round ${metric.round} Dice: ${metric.dice}`}
                       />
 
+
                       {/* LOSS */}
 
                       <div
@@ -481,6 +575,7 @@ export const App: React.FC = () => {
               </div>
 
             )}
+
 
             <div className="flex gap-6 mt-4 text-xs text-slate-400">
 
@@ -535,9 +630,10 @@ export const App: React.FC = () => {
                       status: hospital.status,
                       currentRound: currentRound,
 
-                      // IMPORTANT:
-                      // Live WebSocket metrics first,
-                      // HTTP metrics as fallback.
+                      /*
+                       * Live WebSocket metrics first,
+                       * HTTP metrics as fallback.
+                       */
                       localLoss,
                       localDice,
 
@@ -548,6 +644,7 @@ export const App: React.FC = () => {
                     }}
                   />
                 );
+
               })}
 
             </div>
@@ -562,6 +659,7 @@ export const App: React.FC = () => {
             <div className="flex items-center justify-between mb-4">
 
               <div>
+
                 <h3 className="text-lg font-semibold text-white">
                   Live Federation Activity
                 </h3>
@@ -569,6 +667,7 @@ export const App: React.FC = () => {
                 <p className="text-sm text-slate-400">
                   Real-time events from federation server
                 </p>
+
               </div>
 
               <span
@@ -624,6 +723,7 @@ export const App: React.FC = () => {
                         </p>
 
                       </div>
+
 
                       <div className="text-right">
 
