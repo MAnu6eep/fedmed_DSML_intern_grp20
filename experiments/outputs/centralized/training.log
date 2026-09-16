@@ -1,0 +1,20 @@
+2026-09-15 13:32:19,345 [INFO] ============================================================
+2026-09-15 13:32:19,345 [INFO] Starting Centralized 3D U-Net Baseline Experiment
+2026-09-15 13:32:19,345 [INFO] ============================================================
+2026-09-15 13:32:19,348 [INFO] Found 3 image cases and 3 label cases.
+2026-09-15 13:32:19,348 [INFO] Dataset split: 2 training, 1 validation samples.
+2026-09-15 13:32:19,348 [INFO] Initializing MONAI DataLoaders...
+2026-09-15 13:32:19,417 [INFO] Instantiating 3D U-Net model on device: cpu
+2026-09-15 13:32:19,477 [INFO] Starting training run: 2 epochs, lr=0.0001...
+2026-09-15 13:32:21,484 [INFO] --------------------------------------------------
+2026-09-15 13:32:21,484 [INFO] [OK] Training Completed in 2.01s (Avg 1.00s/epoch)
+2026-09-15 13:32:21,485 [INFO]   • Final Training Loss   : 1.3712
+2026-09-15 13:32:21,485 [INFO]   • Final Validation Loss : 1.1533
+2026-09-15 13:32:21,485 [INFO]   • Final Validation Dice : 9.49%
+2026-09-15 13:32:21,485 [INFO] --------------------------------------------------
+2026-09-15 13:32:21,485 [INFO] Saving experiment artifacts...
+2026-09-15 13:32:21,554 [INFO]   [OK] Saved checkpoint: experiments\outputs\centralized\checkpoint.pt
+2026-09-15 13:32:21,557 [INFO]   [OK] Saved metrics JSON: experiments\outputs\centralized\metrics.json
+2026-09-15 13:32:21,557 [INFO] ============================================================
+2026-09-15 13:32:21,557 [INFO] Centralized Baseline Experiment Finished Successfully!
+2026-09-15 13:32:21,557 [INFO] ============================================================

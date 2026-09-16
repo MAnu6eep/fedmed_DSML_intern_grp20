@@ -1,0 +1,37 @@
+{
+  "status": "VALIDATED",
+  "federated_metrics": {
+    "val_loss": 0.681568,
+    "dice": 0.58574,
+    "iou": 0.41417,
+    "num_samples": 2,
+    "dice_wt": 0.58574,
+    "iou_wt": 0.414169,
+    "dice_tc": 0.096682,
+    "iou_tc": 0.050797,
+    "dice_et": 0.003482,
+    "iou_et": 0.001744
+  },
+  "summary": {
+    "avg_dice": 0.58574,
+    "best_dice": 0.58574,
+    "avg_iou": 0.41417,
+    "best_iou": 0.41417,
+    "avg_loss": 0.681568,
+    "total_rounds": 1.0,
+    "avg_dice_wt": 0.58574,
+    "avg_dice_tc": 0.096682,
+    "avg_dice_et": 0.003482,
+    "avg_iou_wt": 0.414169,
+    "avg_iou_tc": 0.050797,
+    "avg_iou_et": 0.001744
+  },
+  "centralized_comparison": {
+    "centralized_dice": 0.09189,
+    "federated_dice": 0.58574,
+    "dice_difference": 0.49385,
+    "performance_retention_pct": 637.44,
+    "centralized_loss": 1.114704,
+    "federated_loss": 0.681568
+  }
+}
