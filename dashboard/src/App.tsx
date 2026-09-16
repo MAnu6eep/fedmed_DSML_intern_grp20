@@ -152,10 +152,14 @@ export const App: React.FC = () => {
   const [localMetrics, setLocalMetrics] = useState<
     Record<string, LocalMetric>
   >({});
-
+   /*
+   * Federation metrics state
+   */
+  const [metrics, setMetrics] = useState<FederationMetricPoint[]>(MOCK_METRICS);
   /*
    * Map federation events to hospital status.
    */
+   
   const statusByEvent: Partial<
     Record<FederationEventType, Hospital["status"]>
   > = {
