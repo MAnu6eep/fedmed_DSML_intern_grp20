@@ -22,6 +22,11 @@ class HospitalNode(BaseModel):
     status: str = "offline"  # online, training, offline, error
     last_heartbeat: datetime = Field(default_factory=datetime.utcnow)
 
+    last_heartbeat_latency: Optional[float] = None
+    heartbeat_successes: int = 0
+    heartbeat_failures: int = 0
+    consecutive_failures: int = 0
+
 
 class NodeRegistry:
     """Central in-memory registry for dynamically managed hospital nodes."""
