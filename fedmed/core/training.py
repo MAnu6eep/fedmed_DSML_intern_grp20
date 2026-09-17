@@ -2,11 +2,13 @@
 fedmed/core/training.py
 
 Local model training loop, validation engine, and compound loss
-computation for 3D MRI segmentation with optional FedProx regularization.
+computation for 3D MRI segmentation with optional FedProx and
+SCAFFOLD regularization.
 """
 
 from typing import Dict, List, Tuple
 
+import numpy as np
 import torch
 import torch.nn as nn
 from monai.losses import DiceFocalLoss
@@ -22,10 +24,13 @@ def train_one_epoch(
     device: torch.device,
     global_parameters: List[torch.Tensor] | None = None,
     proximal_mu: float = 0.0,
+    scaffold_server_control: List[np.ndarray] | None = None,
+    scaffold_client_control: List[np.ndarray] | None = None,
 ) -> float:
-    """Execute one local training epoch with optional FedProx regularization."""
+    """Execute one local training epoch."""
 
     model.train()
+
     running_loss = 0.0
     total_batches = len(dataloader)
 
@@ -40,17 +45,28 @@ def train_one_epoch(
 
         outputs = model(images)
 
-        # Normal local training loss
-        loss = loss_fn(outputs, labels)
+        loss = loss_fn(
+            outputs,
+            labels,
+        )
 
-        # FedProx proximal term
-        if global_parameters is not None and proximal_mu > 0.0:
+        # --------------------------------------------------------------
+        # FedProx
+        # --------------------------------------------------------------
+
+        if (
+            global_parameters is not None
+            and proximal_mu > 0.0
+        ):
             proximal_term = torch.tensor(
                 0.0,
                 device=device,
             )
 
-            for local_param, global_param in zip(
+            for (
+                local_param,
+                global_param,
+            ) in zip(
                 model.parameters(),
                 global_parameters,
             ):
@@ -58,9 +74,71 @@ def train_one_epoch(
                     (local_param - global_param) ** 2
                 )
 
-            loss = loss + (proximal_mu / 2.0) * proximal_term
+            loss = (
+                loss
+                + (proximal_mu / 2.0)
+                * proximal_term
+            )
+
+        # --------------------------------------------------------------
+        # SCAFFOLD
+        #
+        # Corrected gradient:
+        #
+        #     g_corrected = g - c_i + c
+        #
+        # We first compute the normal gradient and then apply the
+        # control-variate correction before optimizer.step().
+        # --------------------------------------------------------------
 
         loss.backward()
+
+        if (
+            scaffold_server_control is not None
+            and scaffold_client_control is not None
+        ):
+            trainable_parameters = list(
+                model.parameters()
+            )
+
+            if not (
+                len(trainable_parameters)
+                == len(scaffold_server_control)
+                == len(scaffold_client_control)
+            ):
+                raise ValueError(
+                    "SCAFFOLD control variates must match "
+                    "the number of trainable parameters."
+                )
+
+            for (
+                parameter,
+                server_cv,
+                client_cv,
+            ) in zip(
+                trainable_parameters,
+                scaffold_server_control,
+                scaffold_client_control,
+            ):
+                if parameter.grad is None:
+                    continue
+
+                server_tensor = torch.as_tensor(
+                    server_cv,
+                    device=parameter.device,
+                    dtype=parameter.dtype,
+                )
+
+                client_tensor = torch.as_tensor(
+                    client_cv,
+                    device=parameter.device,
+                    dtype=parameter.dtype,
+                )
+
+                parameter.grad.add_(
+                    server_tensor - client_tensor
+                )
+
         optimizer.step()
 
         running_loss += loss.item()
@@ -74,10 +152,11 @@ def evaluate_local(
     loss_fn: nn.Module,
     device: torch.device,
 ) -> Tuple[float, float]:
-    """Evaluate local validation partition and compute validation loss and Dice."""
 
     model.eval()
+
     running_loss = 0.0
+
     dice_metric = DiceMetric(
         include_background=False,
         reduction="mean",
@@ -94,13 +173,17 @@ def evaluate_local(
             labels = batch["label"].to(device)
 
             outputs = model(images)
-            loss = loss_fn(outputs, labels)
+
+            loss = loss_fn(
+                outputs,
+                labels,
+            )
 
             running_loss += loss.item()
 
-            # Binarize output predictions for Dice scoring
             preds = (
-                torch.sigmoid(outputs) > 0.5
+                torch.sigmoid(outputs)
+                > 0.5
             ).float()
 
             dice_metric(
@@ -108,7 +191,10 @@ def evaluate_local(
                 y=labels,
             )
 
-    avg_loss = running_loss / total_batches
+    avg_loss = (
+        running_loss / total_batches
+    )
+
     avg_dice = float(
         dice_metric.aggregate().item()
     )
@@ -127,12 +213,19 @@ def run_local_training(
     device: torch.device = torch.device("cpu"),
     global_parameters: List[torch.Tensor] | None = None,
     proximal_mu: float = 0.0,
+    scaffold_server_control: List[np.ndarray] | None = None,
+    scaffold_client_control: List[np.ndarray] | None = None,
 ) -> Dict[str, float]:
-    """
-    Run local hospital training.
+    """Run local hospital training.
 
-    If global_parameters and proximal_mu are supplied,
-    FedProx regularization is applied during local training.
+    FedAvg:
+        Normal local training.
+
+    FedProx:
+        Adds the proximal regularization term.
+
+    SCAFFOLD:
+        Applies the control-variate gradient correction.
     """
 
     model.to(device)
@@ -160,6 +253,12 @@ def run_local_training(
             device=device,
             global_parameters=global_parameters,
             proximal_mu=proximal_mu,
+            scaffold_server_control=(
+                scaffold_server_control
+            ),
+            scaffold_client_control=(
+                scaffold_client_control
+            ),
         )
 
     val_loss, val_dice = evaluate_local(
