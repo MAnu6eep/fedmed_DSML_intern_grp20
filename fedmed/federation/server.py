@@ -1,7 +1,7 @@
 """fedmed/federation/server.py
 
 Flower server configuration for FedAvg, FedProx, SCAFFOLD,
-and SecAgg+ federated learning workflows.
+SecAgg+, and selective CKKS encrypted model updates.
 """
 
 from collections import OrderedDict
@@ -40,6 +40,11 @@ from fedmed.federation.scaffold import (
     deserialize_control_variate,
     serialize_control_variate,
 )
+from fedmed.privacy.encrypted_update import (
+    aggregate_encrypted_parameters,
+    deserialize_encrypted_update,
+)
+from fedmed.privacy.tenseal_engine import TenSEALEngine
 
 
 # ---------------------------------------------------------------------------
@@ -161,6 +166,183 @@ def get_initial_parameters(
 
     return ndarrays_to_parameters(
         get_parameters(model)
+    )
+
+
+# ---------------------------------------------------------------------------
+# Selective encrypted aggregation
+# ---------------------------------------------------------------------------
+
+
+class EncryptedFedAvgStrategy(FedAvg):
+    """FedAvg strategy with selective CKKS encrypted aggregation.
+
+    Normal model parameters continue through the existing Flower
+    FedAvg path.
+
+    Selected parameters are additionally received as serialized
+    CKKS
+    ciphertexts through the fit metrics payload and aggregated on the
+    server without decrypting them.
+    """
+
+    def __init__(
+        self,
+        initial_parameters: Optional[Parameters] = None,
+        evaluate_fn: Optional[Callable] = None,
+        **kwargs,
+    ):
+        super().__init__(
+            initial_parameters=initial_parameters,
+            evaluate_fn=evaluate_fn,
+            **kwargs,
+        )
+
+        self.tenseal_engine = TenSEALEngine()
+
+        # Stores the most recent aggregated ciphertexts.
+        #
+        # The values remain encrypted. No secret-key decryption is
+        # performed by the server during aggregation.
+        self.aggregated_encrypted_parameters: Dict[
+            str,
+            bytes,
+        ] = {}
+
+    def aggregate_fit(
+        self,
+        server_round: int,
+        results,
+        failures,
+    ):
+        """Aggregate plaintext and encrypted client updates."""
+
+        # --------------------------------------------------------------
+        # Existing FedAvg aggregation
+        # --------------------------------------------------------------
+        #
+        # This keeps the existing model update path working.
+        # --------------------------------------------------------------
+
+        aggregated_parameters, metrics = (
+            super().aggregate_fit(
+                server_round,
+                results,
+                failures,
+            )
+        )
+
+        # --------------------------------------------------------------
+        # Collect encrypted updates from clients.
+        # --------------------------------------------------------------
+
+        encrypted_updates = []
+
+        for _, fit_res in results:
+            encrypted_payload = fit_res.metrics.get(
+                "encrypted_payload"
+            )
+
+            encrypted_enabled = fit_res.metrics.get(
+                "encrypted_update",
+                False,
+            )
+
+            if (
+                encrypted_enabled
+                and isinstance(
+                    encrypted_payload,
+                    bytes,
+                )
+            ):
+                encrypted_update = (
+                    deserialize_encrypted_update(
+                        encrypted_payload
+                    )
+                )
+
+                encrypted_updates.append(
+                    encrypted_update
+                )
+
+        # --------------------------------------------------------------
+        # No encrypted updates in this round.
+        # --------------------------------------------------------------
+
+        if not encrypted_updates:
+            return (
+                aggregated_parameters,
+                metrics,
+            )
+
+        # --------------------------------------------------------------
+        # Aggregate CKKS ciphertexts.
+        #
+        # IMPORTANT:
+        #
+        # aggregate_encrypted_parameters() performs ciphertext
+        # addition only. It does NOT decrypt the values.
+        # --------------------------------------------------------------
+
+        aggregated_encrypted = (
+            aggregate_encrypted_parameters(
+                engine=self.tenseal_engine,
+                encrypted_updates=encrypted_updates,
+            )
+        )
+
+        self.aggregated_encrypted_parameters = (
+            aggregated_encrypted
+        )
+
+        # --------------------------------------------------------------
+        # Add metadata to server metrics.
+        # --------------------------------------------------------------
+
+        metrics = dict(
+            metrics or {}
+        )
+
+        metrics.update(
+            {
+                "encrypted_update": True,
+                "encrypted_parameter_count": len(
+                    aggregated_encrypted
+                ),
+                "encrypted_aggregation_round": (
+                    server_round
+                ),
+            }
+        )
+
+        return (
+            aggregated_parameters,
+            metrics,
+        )
+
+
+def create_encrypted_strategy(
+    initial_parameters: Optional[Parameters] = None,
+    evaluate_fn: Optional[Callable] = None,
+) -> EncryptedFedAvgStrategy:
+    """Create FedAvg with selective CKKS aggregation."""
+
+    config = create_secagg_config()
+
+    return EncryptedFedAvgStrategy(
+        fraction_fit=1.0,
+        fraction_evaluate=1.0,
+        min_fit_clients=config.num_clients,
+        min_evaluate_clients=config.num_clients,
+        min_available_clients=config.num_clients,
+        initial_parameters=initial_parameters,
+        evaluate_fn=evaluate_fn,
+        evaluate_metrics_aggregation_fn=(
+            weighted_average_metrics
+        ),
+        fit_metrics_aggregation_fn=(
+            weighted_average_metrics
+        ),
     )
 
 
@@ -310,7 +492,6 @@ class SCAFFOLDStrategy(FedAvg):
         )
 
         if not server_control.is_initialized():
-            # Lazily initialize if needed.
             model = get_model(
                 in_channels=4,
                 out_channels=1,
@@ -366,7 +547,6 @@ class SCAFFOLDStrategy(FedAvg):
     ):
         """Aggregate model parameters and update server control variate."""
 
-        # First perform normal FedAvg aggregation.
         aggregated_parameters, metrics = (
             super().aggregate_fit(
                 server_round,
@@ -405,7 +585,6 @@ class SCAFFOLDStrategy(FedAvg):
                     client_cv
                 )
 
-        # Update server control variate.
         if client_control_variates:
             self.control_variates.server.update(
                 client_control_variates=(
@@ -417,7 +596,9 @@ class SCAFFOLDStrategy(FedAvg):
                 ),
             )
 
-        metrics = dict(metrics)
+        metrics = dict(
+            metrics
+        )
 
         metrics.update(
             {
@@ -505,6 +686,11 @@ def create_fedprox_strategy(
     )
 
 
+# ---------------------------------------------------------------------------
+# Strategy factory
+# ---------------------------------------------------------------------------
+
+
 def create_server_strategy(
     strategy_name: str = "fedavg",
     proximal_mu: float = 0.01,
@@ -514,7 +700,7 @@ def create_server_strategy(
     min_available_clients: int = 3,
     evaluate_fn: Optional[Callable] = None,
 ):
-    """Create FedAvg, FedProx, or SCAFFOLD strategy."""
+    """Create FedAvg, encrypted FedAvg, FedProx, or SCAFFOLD strategy."""
 
     strategy_name = strategy_name.lower()
 
@@ -535,6 +721,16 @@ def create_server_strategy(
             ),
         )
 
+    if strategy_name in (
+        "encrypted",
+        "encrypted_fedavg",
+        "fedavg_encrypted",
+    ):
+        return create_encrypted_strategy(
+            initial_parameters=initial_parameters,
+            evaluate_fn=evaluate_fn,
+        )
+
     if strategy_name == "fedprox":
         return create_fedprox_strategy(
             proximal_mu=proximal_mu,
@@ -553,7 +749,8 @@ def create_server_strategy(
 
     raise ValueError(
         f"Unsupported strategy: {strategy_name}. "
-        "Expected 'fedavg', 'fedprox', or 'scaffold'."
+        "Expected 'fedavg', 'encrypted', "
+        "'fedprox', or 'scaffold'."
     )
 
 
@@ -653,17 +850,29 @@ def main(
     print(
         f"Federated rounds: {num_rounds}"
     )
+
+    if strategy_name in (
+        "encrypted",
+        "encrypted_fedavg",
+        "fedavg_encrypted",
+    ):
+        print(
+            "Selective CKKS encryption: ENABLED"
+        )
+
     print(
         "===========================================\n"
     )
 
-    # Keep SecAgg+ workflow for the existing FedAvg path.
+    # Existing SecAgg+ workflow remains enabled
+    # for the normal FedAvg path.
     if strategy_name == "fedavg":
         workflow = DefaultWorkflow(
             fit_workflow=create_secagg_workflow(),
         )
     else:
-        # FedProx/SCAFFOLD use the standard Flower workflow.
+        # Encrypted FedAvg, FedProx and SCAFFOLD
+        # use the standard Flower workflow.
         workflow = DefaultWorkflow()
 
     workflow(

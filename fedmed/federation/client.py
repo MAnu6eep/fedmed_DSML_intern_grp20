@@ -6,6 +6,7 @@ Supports:
     - FedAvg
     - FedProx
     - SCAFFOLD
+    - Selective CKKS encrypted model updates
 
 FedAvg and FedProx behaviour remains unchanged when SCAFFOLD
 is not enabled.
@@ -27,6 +28,11 @@ from fedmed.federation.scaffold import (
     deserialize_control_variate,
     serialize_control_variate,
 )
+from fedmed.privacy.encrypted_update import (
+    create_encrypted_update,
+    serialize_encrypted_update,
+)
+from fedmed.privacy.tenseal_engine import TenSEALEngine
 
 
 Config = Dict[str, Union[bool, bytes, float, int, str]]
@@ -49,8 +55,26 @@ class FedMedClient(fl.client.NumPyClient):
         self.val_loader = val_loader
         self.device = device
 
-        # Each hospital maintains its own SCAFFOLD
-        # client control variate c_i.
+        # --------------------------------------------------------------
+        # Selective CKKS encryption
+        # --------------------------------------------------------------
+        #
+        # Each client owns a TenSEAL engine for preparing selected
+        # model parameters for encrypted transmission.
+        #
+        # The list is configurable and can also be supplied through
+        # the Flower fit config using "encrypted_parameters".
+        # --------------------------------------------------------------
+        self.tenseal_engine = TenSEALEngine()
+        self.encrypted_parameters: List[str] = []
+
+        # --------------------------------------------------------------
+        # SCAFFOLD
+        # --------------------------------------------------------------
+        #
+        # Each hospital maintains its own SCAFFOLD client control
+        # variate c_i.
+        # --------------------------------------------------------------
         self.scaffold_control = ClientControlVariate(
             client_id=client_id
         )
@@ -138,6 +162,76 @@ class FedMedClient(fl.client.NumPyClient):
             for parameter in self.model.parameters()
             if parameter.requires_grad
         ]
+
+    # ------------------------------------------------------------------
+    # Selective CKKS encryption
+    # ------------------------------------------------------------------
+
+    def _get_encrypted_parameter_names(
+        self,
+        config: Config,
+    ) -> List[str]:
+        """Return the model parameters selected for encryption.
+
+        Selection can be supplied through Flower configuration using:
+
+            encrypted_parameters="layer1.weight,layer2.weight"
+
+        If the configuration does not contain the selection, the
+        client's default self.encrypted_parameters list is used.
+        """
+
+        encrypted_parameters = config.get(
+            "encrypted_parameters",
+            self.encrypted_parameters,
+        )
+
+        # Flower configuration normally contains strings for lists
+        # represented in configuration dictionaries.
+        if isinstance(
+            encrypted_parameters,
+            str,
+        ):
+            encrypted_parameters = [
+                name.strip()
+                for name in encrypted_parameters.split(",")
+                if name.strip()
+            ]
+
+        return list(encrypted_parameters)
+
+    def _prepare_encrypted_update(
+        self,
+        config: Config,
+    ) -> bytes:
+        """Prepare selected model parameters as an encrypted payload.
+
+        Only parameters listed in ``encrypted_parameters`` are encrypted.
+        All remaining model parameters remain in the plaintext section.
+
+        The resulting update is serialized to bytes so it can be carried
+        through the Flower client/server communication path.
+        """
+
+        encrypted_parameters = (
+            self._get_encrypted_parameter_names(
+                config
+            )
+        )
+
+        if not encrypted_parameters:
+            raise ValueError(
+                "Encrypted update requested but no "
+                "parameters were selected."
+            )
+
+        update = create_encrypted_update(
+            engine=self.tenseal_engine,
+            state_dict=self.model.state_dict(),
+            encrypted_parameters=encrypted_parameters,
+        )
+
+        return serialize_encrypted_update(update)
 
     # ------------------------------------------------------------------
     # SCAFFOLD
@@ -241,6 +335,17 @@ class FedMedClient(fl.client.NumPyClient):
         scaffold_enabled = bool(
             config.get(
                 "scaffold",
+                False,
+            )
+        )
+
+        # --------------------------------------------------------------
+        # Determine whether encrypted update generation is enabled.
+        # --------------------------------------------------------------
+
+        encrypted_update_enabled = bool(
+            config.get(
+                "encrypted_update",
                 False,
             )
         )
@@ -361,13 +466,29 @@ class FedMedClient(fl.client.NumPyClient):
         # --------------------------------------------------------------
         # Complete local model state.
         #
-        # Flower still returns the complete model state because that
-        # is what the existing FedAvg/FedProx pipeline expects.
+        # Existing FedAvg/FedProx/SCAFFOLD still use the normal
+        # Flower parameter path.
         # --------------------------------------------------------------
 
         local_parameters = self.get_parameters(
             config={}
         )
+
+        # --------------------------------------------------------------
+        # Prepare selective encrypted update.
+        #
+        # This happens AFTER local training so that the selected
+        # parameters contain the client's updated model values.
+        # --------------------------------------------------------------
+
+        encrypted_payload = None
+
+        if encrypted_update_enabled:
+            encrypted_payload = (
+                self._prepare_encrypted_update(
+                    config
+                )
+            )
 
         # --------------------------------------------------------------
         # Update client control variate c_i.
@@ -459,6 +580,40 @@ class FedMedClient(fl.client.NumPyClient):
                     ),
                 }
             )
+
+        # --------------------------------------------------------------
+        # Return encrypted update metadata/payload.
+        #
+        # The encrypted payload is bytes so it can be represented
+        # by Flower's Metrics type.
+        #
+        # Selected parameters are represented by CKKS ciphertexts.
+        # Unselected parameters remain in the existing plaintext
+        # local_parameters path.
+        # --------------------------------------------------------------
+
+        if encrypted_payload is not None:
+            encrypted_parameter_names = (
+                self._get_encrypted_parameter_names(
+                    config
+                )
+            )
+
+            metrics.update(
+                {
+                    "encrypted_update": True,
+                    "encrypted_parameters": ",".join(
+                        encrypted_parameter_names
+                    ),
+                    "encrypted_payload": (
+                        encrypted_payload
+                    ),
+                }
+            )
+
+        # --------------------------------------------------------------
+        # Existing Flower return structure remains unchanged.
+        # --------------------------------------------------------------
 
         return (
             local_parameters,
