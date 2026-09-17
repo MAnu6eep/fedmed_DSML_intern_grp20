@@ -145,6 +145,11 @@ export const App: React.FC = () => {
   const [metrics, setMetrics] =
     useState<FederationMetricPoint[]>(MOCK_METRICS);
 
+  const latestMetric =
+    metrics.length > 0
+      ? metrics[metrics.length - 1]
+      : undefined;
+
   /**
    * Map federation events to hospital status.
    */
@@ -195,17 +200,18 @@ export const App: React.FC = () => {
         const trainingLoss = payload.training_loss;
         const validationLoss = payload.validation_loss;
         const diceScore = payload.dice;
-
         const communicationPayloadSize =
           payload.communication_payload_size;
-
         const roundDuration = payload.round_duration;
 
-        if (
+        const hasMetrics =
           typeof trainingLoss === "number" ||
           typeof validationLoss === "number" ||
-          typeof diceScore === "number"
-        ) {
+          typeof diceScore === "number" ||
+          typeof communicationPayloadSize === "number" ||
+          typeof roundDuration === "number";
+
+        if (hasMetrics) {
           setMetrics((previous) => {
             const existingIndex = previous.findIndex(
               (metric) => metric.round === event.round
@@ -214,31 +220,21 @@ export const App: React.FC = () => {
             const newPoint: FederationMetricPoint = {
               round: event.round,
               timestamp: event.timestamp,
-
-              trainingLoss:
-                typeof trainingLoss === "number"
-                  ? trainingLoss
-                  : undefined,
-
-              validationLoss:
-                typeof validationLoss === "number"
-                  ? validationLoss
-                  : undefined,
-
-              diceScore:
-                typeof diceScore === "number"
-                  ? diceScore
-                  : undefined,
-
-              communicationPayloadSize:
-                typeof communicationPayloadSize === "number"
-                  ? communicationPayloadSize
-                  : undefined,
-
-              roundDuration:
-                typeof roundDuration === "number"
-                  ? roundDuration
-                  : undefined,
+              ...(typeof trainingLoss === "number"
+                ? { trainingLoss }
+                : {}),
+              ...(typeof validationLoss === "number"
+                ? { validationLoss }
+                : {}),
+              ...(typeof diceScore === "number"
+                ? { diceScore }
+                : {}),
+              ...(typeof communicationPayloadSize === "number"
+                ? { communicationPayloadSize }
+                : {}),
+              ...(typeof roundDuration === "number"
+                ? { roundDuration }
+                : {}),
             };
 
             if (existingIndex >= 0) {
@@ -499,6 +495,43 @@ export const App: React.FC = () => {
 
           {/* LIVE METRICS CHART */}
           <MetricsChart data={metrics} />
+
+          {/* EXPERIMENT TELEMETRY SUMMARY */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* ROUND DURATION */}
+            <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
+              <p className="text-sm text-slate-400">
+                Round Duration
+              </p>
+
+              <p className="text-3xl font-bold text-white mt-2">
+                {latestMetric?.roundDuration !== undefined
+                  ? `${latestMetric.roundDuration.toFixed(2)}s`
+                  : "--"}
+              </p>
+
+              <p className="text-xs text-slate-500 mt-2">
+                Latest completed federation round
+              </p>
+            </div>
+
+            {/* COMMUNICATION PAYLOAD */}
+            <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
+              <p className="text-sm text-slate-400">
+                Communication Payload
+              </p>
+
+              <p className="text-3xl font-bold text-white mt-2">
+                {latestMetric?.communicationPayloadSize !== undefined
+                  ? `${latestMetric.communicationPayloadSize.toFixed(2)} MB`
+                  : "--"}
+              </p>
+
+              <p className="text-xs text-slate-500 mt-2">
+                Latest client update payload
+              </p>
+            </div>
+          </div>
 
           {/* CONVERGENCE */}
           <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">

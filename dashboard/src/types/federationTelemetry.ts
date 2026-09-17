@@ -11,22 +11,20 @@ export type FederationEventType =
 export interface FederationTelemetryPayload {
   loss?: number;
   dice?: number;
-  participants?: number;
-  total_clients?: number;
-  duration_ms?: number;
-  duration_seconds?: number;
-  aggregation_time_ms?: number;
-  samples?: number;
 
-  // Training metrics
   training_loss?: number;
   validation_loss?: number;
 
-  // Communication metrics
+  participants?: number;
+  total_clients?: number;
+
+  duration_ms?: number;
+  duration_seconds?: number;
+  round_duration?: number;
+
   communication_payload_size?: number;
 
-  // Round metrics
-  round_duration?: number;
+  [key: string]: unknown;
 }
 
 export interface FederationTelemetryEvent {

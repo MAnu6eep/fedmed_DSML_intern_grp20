@@ -6,6 +6,7 @@ live training metrics, and node orchestration.
 """
 
 from datetime import datetime, timezone
+import time
 from typing import Dict
 import os
 import urllib.error
@@ -375,6 +376,38 @@ async def test_metrics_event():
             "dice": 0.90,
             "communication_payload_size": 2.8,
             "round_duration": 16.2,
+        },
+    )
+
+    await telemetry_manager.broadcast(event)
+
+    return event
+@app.post("/api/telemetry/test/metrics")
+async def test_metrics_event():
+    round_start = time.perf_counter()
+
+    # Simulated experiment telemetry
+    training_loss = 0.21
+    validation_loss = 0.25
+    dice = 0.90
+    communication_payload_size = 2.8
+
+    # Simulate round processing time
+    time.sleep(0.2)
+
+    round_duration = time.perf_counter() - round_start
+
+    event = create_event(
+        event_type=FederationEventType.TRAINING_COMPLETED,
+        round_number=6,
+        hospital_id="hospital_b",
+        status="online",
+        payload={
+            "training_loss": training_loss,
+            "validation_loss": validation_loss,
+            "dice": dice,
+            "communication_payload_size": communication_payload_size,
+            "round_duration": round_duration,
         },
     )
 

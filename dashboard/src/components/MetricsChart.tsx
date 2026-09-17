@@ -1,4 +1,5 @@
 import React from "react";
+
 import {
   LineChart,
   Line,
@@ -25,7 +26,7 @@ export const MetricsChart: React.FC<MetricsChartProps> = ({ data }) => {
         </h3>
 
         <p className="text-sm text-slate-400">
-          Live training metrics across federation rounds
+          Training and validation metrics across federation rounds
         </p>
       </div>
 
@@ -50,6 +51,7 @@ export const MetricsChart: React.FC<MetricsChartProps> = ({ data }) => {
             />
 
             <Tooltip />
+
             <Legend />
 
             <Line
@@ -59,7 +61,7 @@ export const MetricsChart: React.FC<MetricsChartProps> = ({ data }) => {
               stroke="#ef4444"
               strokeWidth={2}
               dot
-              connectNulls={false}
+              connectNulls
             />
 
             <Line
@@ -69,7 +71,7 @@ export const MetricsChart: React.FC<MetricsChartProps> = ({ data }) => {
               stroke="#f97316"
               strokeWidth={2}
               dot
-              connectNulls={false}
+              connectNulls
             />
 
             <Line
@@ -79,7 +81,7 @@ export const MetricsChart: React.FC<MetricsChartProps> = ({ data }) => {
               stroke="#22c55e"
               strokeWidth={2}
               dot
-              connectNulls={false}
+              connectNulls
             />
           </LineChart>
         </ResponsiveContainer>
