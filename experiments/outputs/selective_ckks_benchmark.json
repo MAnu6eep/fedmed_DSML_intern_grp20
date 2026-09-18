@@ -1,0 +1,28 @@
+{
+  "configuration": {
+    "num_clients": 3,
+    "num_values_per_parameter": 100,
+    "num_repeats": 3,
+    "encrypted_parameters": [
+      "layer.weight"
+    ]
+  },
+  "baseline": {
+    "aggregation_time_seconds": 8.603333337002066e-05,
+    "payload_size_bytes": 1212
+  },
+  "selective_ckks": {
+    "encryption_time_seconds": 0.020842366666708283,
+    "encrypted_aggregation_time_seconds": 0.00574910000015431,
+    "payload_size_bytes": 994574
+  },
+  "overhead": {
+    "encryption_time_vs_plaintext_aggregation_ratio": 242.25920175692107,
+    "encrypted_aggregation_vs_plaintext_ratio": 66.82409915965958,
+    "payload_size_ratio": 820.6056105610561
+  },
+  "correctness": {
+    "passed": true,
+    "max_absolute_error": 0.0
+  }
+}
