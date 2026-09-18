@@ -201,8 +201,18 @@ export const App: React.FC = () => {
         const validationLoss = payload.validation_loss;
         const diceScore = payload.dice;
         const communicationPayloadSize =
-          payload.communication_payload_size;
-        const roundDuration = payload.round_duration;
+          typeof payload.communication_payload_size === "number"
+            ? payload.communication_payload_size
+            : undefined;
+
+        const roundDuration =
+          typeof payload.round_duration === "number"
+            ? payload.round_duration
+            : typeof payload.duration_seconds === "number"
+              ? payload.duration_seconds
+              : typeof payload.duration_ms === "number"
+                ? payload.duration_ms / 1000
+                : undefined;
 
         const hasMetrics =
           typeof trainingLoss === "number" ||
@@ -505,7 +515,7 @@ export const App: React.FC = () => {
               </p>
 
               <p className="text-3xl font-bold text-white mt-2">
-                {latestMetric?.roundDuration !== undefined
+                {typeof latestMetric?.roundDuration === "number"
                   ? `${latestMetric.roundDuration.toFixed(2)}s`
                   : "--"}
               </p>
@@ -522,7 +532,7 @@ export const App: React.FC = () => {
               </p>
 
               <p className="text-3xl font-bold text-white mt-2">
-                {latestMetric?.communicationPayloadSize !== undefined
+                {typeof latestMetric?.communicationPayloadSize === "number"
                   ? `${latestMetric.communicationPayloadSize.toFixed(2)} MB`
                   : "--"}
               </p>
