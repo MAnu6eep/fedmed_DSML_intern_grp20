@@ -1,0 +1,152 @@
+{
+  "title": "FedAvg vs FedProx vs SCAFFOLD Non-IID Convergence Comparison",
+  "status": "COMPLETED",
+  "distribution": "Non-IID",
+  "partition_method": "Dirichlet",
+  "dirichlet_alpha": 0.5,
+  "strategies": [
+    "FedAvg",
+    "FedProx",
+    "SCAFFOLD"
+  ],
+  "experiments": [
+    {
+      "distribution": "Non-IID",
+      "strategy": "FedAvg",
+      "settings": {
+        "num_clients": 3,
+        "num_rounds": 3,
+        "local_epochs": 1,
+        "learning_rate": 0.0001,
+        "proximal_mu": null,
+        "partition": "Dirichlet",
+        "dirichlet_alpha": 0.5,
+        "seed": 42
+      },
+      "history": [
+        {
+          "round": 1,
+          "train_loss": 1.1027583181858063,
+          "global_loss": 0.9560321420431137,
+          "val_loss": 0.9560321420431137,
+          "val_dice": 0.09703281397620837,
+          "parameter_delta": 0.0,
+          "participants": 3,
+          "failures": 0
+        },
+        {
+          "round": 2,
+          "train_loss": 1.0248891909917195,
+          "global_loss": 0.9530169069766998,
+          "val_loss": 0.9530169069766998,
+          "val_dice": 0.09260404917101066,
+          "parameter_delta": 7.369487356571504,
+          "participants": 3,
+          "failures": 0
+        },
+        {
+          "round": 3,
+          "train_loss": 0.9528751720984777,
+          "global_loss": 0.9501285950342814,
+          "val_loss": 0.9501285950342814,
+          "val_dice": 0.11508051802714665,
+          "parameter_delta": 4.68631072893113,
+          "participants": 3,
+          "failures": 0
+        }
+      ]
+    },
+    {
+      "distribution": "Non-IID",
+      "strategy": "FedProx",
+      "settings": {
+        "num_clients": 3,
+        "num_rounds": 3,
+        "local_epochs": 1,
+        "learning_rate": 0.0001,
+        "proximal_mu": 0.01,
+        "partition": "Dirichlet",
+        "dirichlet_alpha": 0.5,
+        "seed": 42
+      },
+      "history": [
+        {
+          "round": 1,
+          "train_loss": 1.1029902199904125,
+          "global_loss": 0.9560375561316808,
+          "val_loss": 0.9560375561316808,
+          "val_dice": 0.09635805835326512,
+          "parameter_delta": 0.0,
+          "participants": 3,
+          "failures": 0
+        },
+        {
+          "round": 2,
+          "train_loss": 1.0250512013832729,
+          "global_loss": 0.9530119846264521,
+          "val_loss": 0.9530119846264521,
+          "val_dice": 0.09298424671093623,
+          "parameter_delta": 7.368522410368859,
+          "participants": 3,
+          "failures": 0
+        },
+        {
+          "round": 3,
+          "train_loss": 0.9528451611598333,
+          "global_loss": 0.9500721494356791,
+          "val_loss": 0.9500721494356791,
+          "val_dice": 0.11415132507681847,
+          "parameter_delta": 4.677553849132113,
+          "participants": 3,
+          "failures": 0
+        }
+      ]
+    },
+    {
+      "distribution": "Non-IID",
+      "strategy": "SCAFFOLD",
+      "settings": {
+        "num_clients": 3,
+        "num_rounds": 3,
+        "local_epochs": 1,
+        "learning_rate": 0.0001,
+        "proximal_mu": null,
+        "partition": "Dirichlet",
+        "dirichlet_alpha": 0.5,
+        "seed": 42
+      },
+      "history": [
+        {
+          "round": 1,
+          "train_loss": 1.1027583181858063,
+          "global_loss": 0.9560321420431137,
+          "val_loss": 0.9560321420431137,
+          "val_dice": 0.09703281397620837,
+          "parameter_delta": 0.0,
+          "participants": 3,
+          "failures": 0
+        },
+        {
+          "round": 2,
+          "train_loss": 1.0253017842769623,
+          "global_loss": 0.9540446798006693,
+          "val_loss": 0.9540446798006693,
+          "val_dice": 0.10734583623707294,
+          "parameter_delta": 7.345505025642396,
+          "participants": 3,
+          "failures": 0
+        },
+        {
+          "round": 3,
+          "train_loss": 0.9835439870754877,
+          "global_loss": 0.9522294749816259,
+          "val_loss": 0.9522294749816259,
+          "val_dice": 0.15240378181139627,
+          "parameter_delta": 4.559146112695722,
+          "participants": 3,
+          "failures": 0
+        }
+      ]
+    }
+  ]
+}
