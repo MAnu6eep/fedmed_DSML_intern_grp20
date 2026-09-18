@@ -26,6 +26,8 @@ class FederationEvent(BaseModel):
     round: int
     hospital_id: str | None = None
     status: str | None = None
+
+    # Experiment-level telemetry
     payload: dict[str, Any] = Field(default_factory=dict)
 
 
