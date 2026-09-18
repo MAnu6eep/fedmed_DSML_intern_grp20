@@ -147,6 +147,32 @@ class NodeRegistry:
 
         return healthy
 
+    def get_live_node_info(self) -> List[Dict[str, object]]:
+        """Return dashboard-ready live information for all registered nodes."""
+        return [
+            {
+                "hospital_id": node.id,
+                "name": node.name,
+                "host": node.host,
+                "port": node.port,
+                "grpc_port": node.grpc_port,
+                "status": node.status,
+                "active": node.status in {"online", "training"},
+                "participating": node.participating,
+                "samples": node.sample_count,
+                "heartbeat_successes": node.heartbeat_successes,
+                "heartbeat_failures": node.heartbeat_failures,
+                "consecutive_failures": node.consecutive_failures,
+                "last_heartbeat": node.last_heartbeat.isoformat(),
+                "latency_ms": (
+                    round(node.last_heartbeat_latency * 1000, 3)
+                    if node.last_heartbeat_latency is not None
+                    else None
+                ),
+            }
+            for node in self._nodes.values()
+        ]
+
     def get_node(self, node_id: str) -> Optional[HospitalNode]:
         """Retrieve a hospital node by ID."""
         return self._nodes.get(node_id)

@@ -275,3 +275,95 @@ def test_recovered_node_returns_to_active_participation(monkeypatch):
     assert updated.participating is True
     assert updated.consecutive_failures == 0
     assert updated.heartbeat_successes == 1
+
+def test_live_node_info_contains_current_latency_and_activity(monkeypatch):
+    node_registry = NodeRegistry()
+
+    node = make_node("hospital_a")
+    node.status = "online"
+    node.participating = True
+    node_registry.add_node(node)
+
+    monkeypatch.setattr(
+        "fedmed.nodes.heartbeat.check_node_health",
+        lambda host, port: True,
+    )
+
+    monitor = HeartbeatMonitor(node_registry)
+
+    assert monitor.check_node("hospital_a") is True
+
+    info = node_registry.get_live_node_info()
+
+    assert len(info) == 1
+    assert info[0]["hospital_id"] == "hospital_a"
+    assert info[0]["active"] is True
+    assert info[0]["participating"] is True
+    assert info[0]["heartbeat_successes"] == 1
+    assert info[0]["heartbeat_failures"] == 0
+    assert info[0]["latency_ms"] is not None
+    assert info[0]["latency_ms"] >= 0
+    assert info[0]["last_heartbeat"] is not None
+
+
+def test_live_node_info_reflects_dropout(monkeypatch):
+    node_registry = NodeRegistry()
+
+    node = make_node("hospital_a")
+    node.status = "online"
+    node.participating = True
+    node_registry.add_node(node)
+
+    monkeypatch.setattr(
+        "fedmed.nodes.heartbeat.check_node_health",
+        lambda host, port: False,
+    )
+
+    monitor = HeartbeatMonitor(
+        node_registry,
+        failure_threshold=2,
+    )
+
+    monitor.check_node("hospital_a")
+    monitor.check_node("hospital_a")
+
+    info = node_registry.get_live_node_info()
+
+    assert info[0]["status"] == "offline"
+    assert info[0]["active"] is False
+    assert info[0]["participating"] is False
+    assert info[0]["heartbeat_failures"] == 2
+    assert info[0]["consecutive_failures"] == 2
+
+
+def test_live_node_info_reflects_recovery(monkeypatch):
+    node_registry = NodeRegistry()
+
+    node = make_node("hospital_a")
+    node.status = "online"
+    node.participating = True
+    node_registry.add_node(node)
+
+    responses = iter([False, False, True])
+
+    monkeypatch.setattr(
+        "fedmed.nodes.heartbeat.check_node_health",
+        lambda host, port: next(responses),
+    )
+
+    monitor = HeartbeatMonitor(
+        node_registry,
+        failure_threshold=2,
+    )
+
+    monitor.check_node("hospital_a")
+    monitor.check_node("hospital_a")
+    monitor.check_node("hospital_a")
+
+    info = node_registry.get_live_node_info()
+
+    assert info[0]["status"] == "online"
+    assert info[0]["active"] is True
+    assert info[0]["participating"] is True
+    assert info[0]["consecutive_failures"] == 0
+    assert info[0]["heartbeat_successes"] == 1
