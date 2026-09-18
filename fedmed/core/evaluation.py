@@ -2,12 +2,12 @@
 
 Local model validation engine, sliding-window inference, per-region tumor segmentation metrics
 (Whole Tumor, Tumor Core, Enhancing Tumor), round-level metric collection, federated strategy callbacks,
-and centralized vs. federated comparison.
+3D tumor slice visualization extraction, and centralized vs. federated comparison.
 """
 
 import json
 from pathlib import Path
-from typing import Callable, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 import numpy as np
 import torch
 import torch.nn as nn
@@ -126,7 +126,7 @@ def evaluate_sliding_window(
     overlap: float = 0.25,
     loss_fn: Optional[nn.Module] = None,
     device: torch.device = torch.device("cpu"),
-) -> Dict[str, float]:
+) -> Dict[str, Any]:
     """Evaluates 3D U-Net over volumetric MRI scans using sliding-window inference,
     computing overall and per-region (WT, TC, ET) Dice and IoU metrics.
     """
@@ -206,14 +206,72 @@ def evaluate_sliding_window(
     return results
 
 
+def evaluate_and_extract_slices(
+    model: nn.Module,
+    dataloader: DataLoader,
+    roi_size: Tuple[int, int, int] = (64, 64, 32),
+    sw_batch_size: int = 2,
+    extract_slices: bool = True,
+    num_slices: int = 3,
+    loss_fn: Optional[nn.Module] = None,
+    device: torch.device = torch.device("cpu"),
+) -> Dict[str, Any]:
+    """Runs sliding window evaluation and automatically extracts 2D visualization slices from 3D predictions."""
+    from fedmed.data.slice_extraction import extract_visualization_payload
+
+    metrics = evaluate_sliding_window(
+        model=model,
+        dataloader=dataloader,
+        roi_size=roi_size,
+        sw_batch_size=sw_batch_size,
+        loss_fn=loss_fn,
+        device=device,
+    )
+
+    if extract_slices and len(dataloader) > 0:
+        model.eval()
+        try:
+            with torch.no_grad():
+                first_batch = next(iter(dataloader))
+                images = first_batch["image"].to(device)
+                outputs = sliding_window_inference(
+                    inputs=images,
+                    roi_size=roi_size,
+                    sw_batch_size=sw_batch_size,
+                    predictor=model,
+                )
+                probs = torch.sigmoid(outputs)
+                preds = (probs > 0.5).float()
+
+                # Extract visualization payload for first volume in batch
+                sample_img = images[0].cpu().numpy()
+                sample_pred = preds[0].cpu().numpy()
+
+                visualization_payload = extract_visualization_payload(
+                    image_3d=sample_img,
+                    mask_3d=sample_pred,
+                    num_slices=num_slices,
+                )
+                metrics["visualization_payload"] = visualization_payload
+        except Exception as e:
+            # Gracefully log without breaking evaluation
+            metrics["visualization_payload"] = {
+                "status": "FALLBACK",
+                "error": str(e),
+                "slices_by_orientation": {},
+            }
+
+    return metrics
+
+
 def evaluate_model_metrics(
     model: nn.Module,
     dataloader: DataLoader,
     loss_fn: Optional[nn.Module] = None,
     device: torch.device = torch.device("cpu"),
-) -> Dict[str, float]:
+) -> Dict[str, Any]:
     """Standard evaluation wrapper calling sliding-window inference."""
-    return evaluate_sliding_window(
+    return evaluate_and_extract_slices(
         model=model,
         dataloader=dataloader,
         loss_fn=loss_fn,
@@ -228,9 +286,9 @@ def run_post_training_validation(
     collector: Optional[RoundMetricCollector] = None,
     roi_size: Tuple[int, int, int] = (64, 64, 32),
     device: torch.device = torch.device("cpu"),
-) -> Dict[str, float]:
-    """Runs post-training sliding-window validation and records round metrics."""
-    metrics = evaluate_sliding_window(
+) -> Dict[str, Any]:
+    """Runs post-training sliding-window validation, slice extraction, and records round metrics."""
+    metrics = evaluate_and_extract_slices(
         model=model,
         dataloader=val_loader,
         roi_size=roi_size,
@@ -262,11 +320,12 @@ def get_federated_evaluate_fn(
     val_loader: DataLoader,
     collector: Optional[RoundMetricCollector] = None,
     device: torch.device = torch.device("cpu"),
+    save_outputs: bool = True,
 ) -> Callable:
     """Creates a server-side evaluation callback for Flower strategies.
     
     Evaluates the aggregated global 3D U-Net model after each federated round,
-    recording Dice, IoU, and tumor sub-region metrics formatted for dashboard telemetry.
+    recording Dice, IoU, tumor sub-region metrics, and visualization slice previews.
     """
     def evaluate(
         server_round: int,
@@ -277,9 +336,11 @@ def get_federated_evaluate_fn(
 
         set_parameters(model, parameters)
 
-        metrics = evaluate_sliding_window(
+        metrics = evaluate_and_extract_slices(
             model=model,
             dataloader=val_loader,
+            extract_slices=True,
+            num_slices=3,
             device=device,
         )
 
@@ -301,13 +362,24 @@ def get_federated_evaluate_fn(
             )
 
         metrics["round"] = float(server_round)
+
+        if save_outputs:
+            output_dir = Path("experiments/outputs")
+            output_dir.mkdir(parents=True, exist_ok=True)
+            round_file = output_dir / f"federated_visualization_round_{server_round}.json"
+            try:
+                with open(round_file, "w") as f:
+                    json.dump(metrics, f, indent=2)
+            except Exception:
+                pass
+
         return metrics["val_loss"], metrics
 
     return evaluate
 
 
 def compare_centralized_vs_federated(
-    federated_metrics: Dict[str, float],
+    federated_metrics: Dict[str, Any],
     centralized_filepath: Optional[Path] = None,
 ) -> Dict[str, float]:
     """Compares current federated evaluation metrics against the centralized baseline."""
@@ -371,5 +443,6 @@ if __name__ == "__main__":
 
     loss, metrics = eval_fn(server_round=1, parameters=params, config={})
 
-    print("[OK] Federated round evaluation output:", metrics)
+    print("[OK] Federated round evaluation output keys:", list(metrics.keys()))
+    print("[OK] Visualization payload status:", metrics.get("visualization_payload", {}).get("status"))
     print("[OK] Collector summary:", collector.get_summary())

@@ -2,7 +2,7 @@
 
 Consolidated Week 2 ML Validation Script for 3D U-Net Medical Segmentation.
 Executes and compares Centralized Baseline vs. IID Federated vs. Non-IID Federated setups.
-Consolidates Dice, IoU, and tumor sub-region (WT, TC, ET) metrics.
+Consolidates Dice, IoU, tumor sub-region (WT, TC, ET) metrics, and 3D tumor slice previews.
 """
 
 import json
@@ -21,6 +21,7 @@ from monai.losses import DiceFocalLoss
 from fedmed.core.evaluation import (
     RoundMetricCollector,
     compare_centralized_vs_federated,
+    evaluate_and_extract_slices,
     evaluate_sliding_window,
     run_post_training_validation,
 )
@@ -67,10 +68,12 @@ def run_week2_validation_pipeline() -> Dict[str, Any]:
 
     # Train centralized baseline for 1 epoch
     train_one_epoch(centralized_model, centralized_loader, optimizer, loss_fn, device=device)
-    centralized_metrics = evaluate_sliding_window(
+    centralized_metrics = evaluate_and_extract_slices(
         model=centralized_model,
         dataloader=val_loader,
         roi_size=(32, 32, 16),
+        extract_slices=True,
+        num_slices=3,
         device=device,
     )
     print(f"   [Centralized Baseline] Val Loss: {centralized_metrics['val_loss']:.4f} | Dice: {centralized_metrics['dice']*100:.2f}% | IoU: {centralized_metrics['iou']*100:.2f}%")
@@ -89,10 +92,12 @@ def run_week2_validation_pipeline() -> Dict[str, Any]:
         device=device,
     )
 
-    iid_metrics = evaluate_sliding_window(
+    iid_metrics = evaluate_and_extract_slices(
         model=iid_model,
         dataloader=val_loader,
         roi_size=(32, 32, 16),
+        extract_slices=True,
+        num_slices=3,
         device=device,
     )
     print(f"   [IID Federated] Val Loss: {iid_metrics['val_loss']:.4f} | Dice: {iid_metrics['dice']*100:.2f}% | IoU: {iid_metrics['iou']*100:.2f}%")
@@ -116,10 +121,12 @@ def run_week2_validation_pipeline() -> Dict[str, Any]:
         proximal_mu=0.01,
     )
 
-    non_iid_metrics = evaluate_sliding_window(
+    non_iid_metrics = evaluate_and_extract_slices(
         model=non_iid_model,
         dataloader=val_loader,
         roi_size=(32, 32, 16),
+        extract_slices=True,
+        num_slices=3,
         device=device,
     )
     print(f"   [Non-IID FedProx] Val Loss: {non_iid_metrics['val_loss']:.4f} | Dice: {non_iid_metrics['dice']*100:.2f}% | IoU: {non_iid_metrics['iou']*100:.2f}%")

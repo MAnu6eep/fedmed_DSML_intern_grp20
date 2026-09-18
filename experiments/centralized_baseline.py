@@ -1,8 +1,8 @@
 """experiments/centralized_baseline.py
 
-End-to-end centralized 3D U-Net baseline training and validation execution script.
+End-to-end centralized 3D U-Net baseline training, validation, and 3D tumor slice visualization script.
 Generates/loads synthetic MRI dataset, applies MONAI transforms, trains 3D U-Net,
-calculates Dice metrics, and saves model checkpoints + telemetry logs.
+calculates Dice metrics, extracts 2D tumor visualization slices, and saves model checkpoints + telemetry logs.
 """
 import json
 import logging
@@ -16,6 +16,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
+from fedmed.core.evaluation import evaluate_and_extract_slices
 from fedmed.core.model import get_model
 from fedmed.core.training import run_local_training
 from fedmed.data.loader import create_brats_dataloader
@@ -28,6 +29,7 @@ OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 LOG_FILE = OUTPUT_DIR / "training.log"
 CHECKPOINT_PATH = OUTPUT_DIR / "checkpoint.pt"
 METRICS_PATH = OUTPUT_DIR / "metrics.json"
+VISUALIZATION_PATH = OUTPUT_DIR / "visualization.json"
 
 # Setup Logger
 logging.basicConfig(
@@ -73,10 +75,24 @@ def main():
 
     logger.info(f"Dataset split: {len(train_dicts)} training, {len(val_dicts)} validation samples.")
 
-    # 2. Build MONAI DataLoaders
-    logger.info("Initializing MONAI DataLoaders...")
-    train_loader = create_brats_dataloader(train_dicts, batch_size=2, is_train=True, use_cache=False)
-    val_loader = create_brats_dataloader(val_dicts, batch_size=2, is_train=False, use_cache=False)
+    # 2. Build MONAI DataLoaders with intensity normalization & spatial resampling
+    logger.info("Initializing MONAI DataLoaders with intensity normalization and spatial resampling...")
+    train_loader = create_brats_dataloader(
+        train_dicts,
+        batch_size=2,
+        is_train=True,
+        use_cache=False,
+        nonzero_norm=True,
+        channel_wise_norm=True,
+    )
+    val_loader = create_brats_dataloader(
+        val_dicts,
+        batch_size=2,
+        is_train=False,
+        use_cache=False,
+        nonzero_norm=True,
+        channel_wise_norm=True,
+    )
 
     # 3. Instantiate 3D U-Net Model
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -107,7 +123,17 @@ def main():
     logger.info(f"  • Final Validation Dice : {metrics['val_dice'] * 100:.2f}%")
     logger.info("-" * 50)
 
-    # 5. Save Experiment Artifacts
+    # 5. Extract 3D Tumor Slice Visualization Payload
+    logger.info("Extracting 3D tumor slice visualization payload...")
+    val_eval_results = evaluate_and_extract_slices(
+        model=model,
+        dataloader=val_loader,
+        extract_slices=True,
+        num_slices=3,
+        device=device,
+    )
+
+    # 6. Save Experiment Artifacts
     logger.info("Saving experiment artifacts...")
 
     # Save PyTorch Model Checkpoint
@@ -133,11 +159,17 @@ def main():
         "val_dice": round(metrics["val_dice"], 6),
         "device": str(device),
         "dataset_samples": len(data_dicts),
+        "evaluation_results": val_eval_results,
     }
 
     with open(METRICS_PATH, "w") as f:
         json.dump(metrics_payload, f, indent=2)
     logger.info(f"  [OK] Saved metrics JSON: {METRICS_PATH.relative_to(PROJECT_ROOT)}")
+
+    # Save Visualization JSON
+    with open(VISUALIZATION_PATH, "w") as f:
+        json.dump(val_eval_results.get("visualization_payload", {}), f, indent=2)
+    logger.info(f"  [OK] Saved visualization payload: {VISUALIZATION_PATH.relative_to(PROJECT_ROOT)}")
 
     logger.info("=" * 60)
     logger.info("Centralized Baseline Experiment Finished Successfully!")
