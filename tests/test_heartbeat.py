@@ -189,3 +189,89 @@ def test_heartbeat_monitor_start_is_idempotent(monkeypatch):
     monitor.stop()
 
     assert first_thread is second_thread
+
+def test_heartbeat_updates_registry_participation_state(monkeypatch):
+    node_registry = NodeRegistry()
+
+    node = make_node("hospital_a")
+    node_registry.add_node(node)
+
+    monkeypatch.setattr(
+        "fedmed.nodes.heartbeat.check_node_health",
+        lambda host, port: True,
+    )
+
+    monitor = HeartbeatMonitor(node_registry)
+
+    assert monitor.check_node("hospital_a") is True
+
+    updated = node_registry.get_node("hospital_a")
+
+    assert updated is not None
+    assert updated.status == "online"
+    assert updated.participating is True
+    assert updated.heartbeat_successes == 1
+    assert updated.consecutive_failures == 0
+    assert updated.last_heartbeat_latency is not None
+
+
+def test_heartbeat_dropout_updates_registry_and_participation(monkeypatch):
+    node_registry = NodeRegistry()
+
+    node = make_node("hospital_a")
+    node.status = "online"
+    node.participating = True
+    node_registry.add_node(node)
+
+    monkeypatch.setattr(
+        "fedmed.nodes.heartbeat.check_node_health",
+        lambda host, port: False,
+    )
+
+    monitor = HeartbeatMonitor(
+        node_registry,
+        failure_threshold=3,
+    )
+
+    for _ in range(3):
+        monitor.check_node("hospital_a")
+
+    updated = node_registry.get_node("hospital_a")
+
+    assert updated is not None
+    assert updated.status == "offline"
+    assert updated.participating is False
+    assert updated.heartbeat_failures == 3
+    assert updated.consecutive_failures == 3
+
+
+def test_recovered_node_returns_to_active_participation(monkeypatch):
+    node_registry = NodeRegistry()
+
+    node = make_node("hospital_a")
+    node.status = "online"
+    node.participating = True
+    node_registry.add_node(node)
+
+    responses = iter([False, False, False, True])
+
+    monkeypatch.setattr(
+        "fedmed.nodes.heartbeat.check_node_health",
+        lambda host, port: next(responses),
+    )
+
+    monitor = HeartbeatMonitor(
+        node_registry,
+        failure_threshold=3,
+    )
+
+    for _ in range(4):
+        monitor.check_node("hospital_a")
+
+    updated = node_registry.get_node("hospital_a")
+
+    assert updated is not None
+    assert updated.status == "online"
+    assert updated.participating is True
+    assert updated.consecutive_failures == 0
+    assert updated.heartbeat_successes == 1

@@ -26,6 +26,7 @@ class HospitalNode(BaseModel):
     heartbeat_successes: int = 0
     heartbeat_failures: int = 0
     consecutive_failures: int = 0
+    participating: bool = False
 
 
 class NodeRegistry:
@@ -101,11 +102,50 @@ class NodeRegistry:
 
         node.status = status
         node.last_heartbeat = datetime.utcnow()
+        node.participating = status in {"online", "training"}
 
         if sample_count is not None:
             node.sample_count = sample_count
 
         return True
+
+    def record_heartbeat(
+        self,
+        node_id: str,
+        healthy: bool,
+        latency: float,
+        failure_threshold: int = 3,
+    ) -> bool:
+        """Record a heartbeat result and synchronize node availability."""
+        if failure_threshold <= 0:
+            raise ValueError("failure_threshold must be greater than zero")
+
+        node = self._nodes.get(node_id)
+
+        if node is None:
+            return False
+
+        node.last_heartbeat = datetime.utcnow()
+        node.last_heartbeat_latency = max(0.0, float(latency))
+
+        if healthy:
+            node.heartbeat_successes += 1
+            node.consecutive_failures = 0
+
+            if node.status in {"offline", "error"}:
+                node.status = "online"
+
+            node.participating = node.status in {"online", "training"}
+
+        else:
+            node.heartbeat_failures += 1
+            node.consecutive_failures += 1
+
+            if node.consecutive_failures >= failure_threshold:
+                node.status = "offline"
+                node.participating = False
+
+        return healthy
 
     def get_node(self, node_id: str) -> Optional[HospitalNode]:
         """Retrieve a hospital node by ID."""

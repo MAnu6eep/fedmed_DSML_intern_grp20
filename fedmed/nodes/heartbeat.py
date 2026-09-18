@@ -48,26 +48,12 @@ class HeartbeatMonitor:
         healthy = check_node_health(node.host, node.port)
         latency = time.perf_counter() - start_time
 
-        node.last_heartbeat_latency = latency
-        node.last_heartbeat = datetime.utcnow()
-
-        if healthy:
-            node.heartbeat_successes += 1
-            node.consecutive_failures = 0
-
-            if node.status == "offline":
-                self.registry.update_status(node_id, "online")
-            elif node.status == "error":
-                self.registry.update_status(node_id, "online")
-
-        else:
-            node.heartbeat_failures += 1
-            node.consecutive_failures += 1
-
-            if node.consecutive_failures >= self.failure_threshold:
-                self.registry.update_status(node_id, "offline")
-
-        return healthy
+        return self.registry.record_heartbeat(
+            node_id=node_id,
+            healthy=healthy,
+            latency=latency,
+            failure_threshold=self.failure_threshold,
+        )
 
     def check_all(self) -> Dict[str, bool]:
         """Perform one heartbeat check for every registered node."""
