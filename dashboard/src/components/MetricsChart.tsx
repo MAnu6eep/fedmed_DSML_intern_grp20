@@ -1,5 +1,4 @@
 import React from "react";
-
 import {
   LineChart,
   Line,
@@ -22,11 +21,11 @@ export const MetricsChart: React.FC<MetricsChartProps> = ({ data }) => {
     <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
       <div className="mb-6">
         <h3 className="text-lg font-semibold text-white">
-          Federated Training Metrics
+          Federated Training & Performance Metrics
         </h3>
 
         <p className="text-sm text-slate-400">
-          Training and validation metrics across federation rounds
+          Model performance and federation performance across rounds
         </p>
       </div>
 
@@ -79,6 +78,26 @@ export const MetricsChart: React.FC<MetricsChartProps> = ({ data }) => {
               dataKey="diceScore"
               name="Dice Score"
               stroke="#22c55e"
+              strokeWidth={2}
+              dot
+              connectNulls
+            />
+
+            <Line
+              type="monotone"
+              dataKey="communicationPayloadSize"
+              name="Communication Payload (MB)"
+              stroke="#3b82f6"
+              strokeWidth={2}
+              dot
+              connectNulls
+            />
+
+            <Line
+              type="monotone"
+              dataKey="roundDuration"
+              name="Round Duration (s)"
+              stroke="#a855f7"
               strokeWidth={2}
               dot
               connectNulls
