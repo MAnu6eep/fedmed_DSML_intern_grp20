@@ -146,16 +146,24 @@ def create_brats_dataloader(
     use_cache: bool = False,
     roi_size: Tuple[int, int, int] = (64, 64, 32),
     pixdim: Tuple[float, float, float] = (1.0, 1.0, 1.0),
+    axcodes: str = "RAS",
     nonzero_norm: bool = True,
     channel_wise_norm: bool = True,
+    resample_mode: Tuple[str, str] = ("bilinear", "nearest"),
+    scale_min: Optional[float] = None,
+    scale_max: Optional[float] = None,
 ) -> DataLoader:
     """Creates a memory-efficient PyTorch DataLoader with MONAI transforms."""
 
     train_tf, val_tf = get_brats_transforms(
         roi_size=roi_size,
         pixdim=pixdim,
+        axcodes=axcodes,
         nonzero_norm=nonzero_norm,
         channel_wise_norm=channel_wise_norm,
+        resample_mode=resample_mode,
+        scale_min=scale_min,
+        scale_max=scale_max,
     )
     transforms = train_tf if is_train else val_tf
 
