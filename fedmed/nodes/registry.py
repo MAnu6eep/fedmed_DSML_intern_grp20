@@ -17,9 +17,11 @@ class HospitalNode(BaseModel):
     host: str = "127.0.0.1"
     port: int
     grpc_port: int
+    health_host: str = "127.0.0.1"
+    health_port: int = 8080
     data_dir: str
     sample_count: int = 0
-    status: str = "offline"  # online, training, offline, error
+    status: str = "offline"
     last_heartbeat: datetime = Field(default_factory=datetime.utcnow)
 
     last_heartbeat_latency: Optional[float] = None

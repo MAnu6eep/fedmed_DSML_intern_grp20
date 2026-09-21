@@ -45,7 +45,10 @@ class HeartbeatMonitor:
             return False
 
         start_time = time.perf_counter()
-        healthy = check_node_health(node.host, node.port)
+        healthy = check_node_health(
+            node.health_host,
+            node.health_port,
+        )
         latency = time.perf_counter() - start_time
 
         return self.registry.record_heartbeat(

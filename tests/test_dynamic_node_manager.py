@@ -108,3 +108,24 @@ def test_active_count_tracks_online_nodes():
     registry.add_node(make_node("hospital_c", status="online"))
 
     assert registry.get_active_count() == 2
+
+
+def test_node_has_separate_health_endpoint_configuration():
+    registry = NodeRegistry()
+
+    node = HospitalNode(
+        id="hospital_x",
+        name="Hospital X",
+        port=8081,
+        grpc_port=9091,
+        data_dir="/data/hospital_x",
+    )
+
+    registry.add_node(node)
+
+    stored = registry.get_node("hospital_x")
+
+    assert stored is not None
+    assert stored.port == 8081
+    assert stored.health_host == "127.0.0.1"
+    assert stored.health_port == 8080

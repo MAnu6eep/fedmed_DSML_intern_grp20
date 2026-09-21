@@ -9,6 +9,8 @@ def make_node(node_id: str, port: int = 8081) -> HospitalNode:
         host="127.0.0.1",
         port=port,
         grpc_port=port + 1000,
+        health_host="127.0.0.1",
+        health_port=8080,
         data_dir=f"/data/{node_id}",
     )
 
@@ -123,9 +125,17 @@ def test_successful_heartbeat_resets_consecutive_failures(monkeypatch):
 def test_check_all_monitors_dynamic_nodes(monkeypatch):
     node_registry = NodeRegistry()
 
-    node_registry.add_node(make_node("hospital_a", 8081))
-    node_registry.add_node(make_node("hospital_b", 8082))
-    node_registry.add_node(make_node("hospital_c", 8083))
+    hospital_a = make_node("hospital_a", 8081)
+    hospital_b = make_node("hospital_b", 8082)
+    hospital_c = make_node("hospital_c", 8083)
+
+    hospital_a.health_port = 8081
+    hospital_b.health_port = 8082
+    hospital_c.health_port = 8083
+
+    node_registry.add_node(hospital_a)
+    node_registry.add_node(hospital_b)
+    node_registry.add_node(hospital_c)
 
     monkeypatch.setattr(
         "fedmed.nodes.heartbeat.check_node_health",
