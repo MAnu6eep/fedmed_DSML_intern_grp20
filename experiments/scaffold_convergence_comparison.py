@@ -1,4 +1,5 @@
-"""experiments/scaffold_convergence_comparison.py
+"""
+experiments/scaffold_convergence_comparison.py
 
 Compare FedAvg, FedProx, and SCAFFOLD on the existing
 Dirichlet Non-IID hospital partition.
@@ -11,6 +12,9 @@ The experiment records:
     - global model parameter change
     - participating clients
     - failures
+    - SCAFFOLD status
+    - SCAFFOLD participating clients
+    - SCAFFOLD round
 """
 
 import json
@@ -173,6 +177,7 @@ def create_client(
 def record_strategy_metrics(
     strategy,
     history,
+    strategy_name,
 ):
     """Record round metrics and global model changes."""
 
@@ -299,6 +304,18 @@ def record_strategy_metrics(
             val_loss = 0.0
             val_dice = 0.0
 
+        # ----------------------------------------------------
+        # Record structured round history.
+        #
+        # These SCAFFOLD fields allow the end-to-end test
+        # to verify that SCAFFOLD was active, all clients
+        # participated, and rounds progressed correctly.
+        # ----------------------------------------------------
+
+        is_scaffold = (
+            strategy_name == "SCAFFOLD"
+        )
+
         history.append(
             {
                 "round": server_round,
@@ -309,6 +326,19 @@ def record_strategy_metrics(
                 "parameter_delta": parameter_delta,
                 "participants": len(results),
                 "failures": len(failures),
+
+                # SCAFFOLD verification metrics
+                "scaffold": is_scaffold,
+                "scaffold_clients": (
+                    len(results)
+                    if is_scaffold
+                    else 0
+                ),
+                "scaffold_round": (
+                    server_round
+                    if is_scaffold
+                    else 0
+                ),
             }
         )
 
@@ -402,6 +432,7 @@ def run_experiment(
     strategy = record_strategy_metrics(
         strategy,
         history,
+        strategy_name,
     )
 
     # --------------------------------------------------------
