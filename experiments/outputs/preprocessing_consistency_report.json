@@ -1,0 +1,121 @@
+{
+  "status": "PASSED",
+  "timestamp": "2026-09-18 20:51:53",
+  "preprocessing_config": {
+    "roi_size": [
+      64,
+      64,
+      32
+    ],
+    "pixdim": [
+      1.0,
+      1.0,
+      1.0
+    ],
+    "axcodes": "RAS",
+    "nonzero_norm": true,
+    "channel_wise_norm": true,
+    "resample_mode": [
+      "bilinear",
+      "nearest"
+    ],
+    "scale_min": null,
+    "scale_max": null
+  },
+  "hospital_count": 3,
+  "consistency_checks": {
+    "spatial_shape_uniformity": true,
+    "intensity_mean_zero_centered": true,
+    "intensity_variance_normalized": true,
+    "overall_consistent": true
+  },
+  "hospital_nodes": {
+    "hospital_1": {
+      "samples_processed": 2,
+      "image_tensor_shape": [
+        1,
+        4,
+        64,
+        64,
+        32
+      ],
+      "spatial_shape": [
+        4,
+        64,
+        64,
+        32
+      ],
+      "label_shape": [
+        1,
+        64,
+        64,
+        32
+      ],
+      "channels": 4,
+      "intensity_stats_nonzero": {
+        "mean": -0.0,
+        "std": 1.0,
+        "min": -4.4881,
+        "max": 4.9339
+      }
+    },
+    "hospital_2": {
+      "samples_processed": 2,
+      "image_tensor_shape": [
+        1,
+        4,
+        64,
+        64,
+        32
+      ],
+      "spatial_shape": [
+        4,
+        64,
+        64,
+        32
+      ],
+      "label_shape": [
+        1,
+        64,
+        64,
+        32
+      ],
+      "channels": 4,
+      "intensity_stats_nonzero": {
+        "mean": 0.0,
+        "std": 1.0,
+        "min": -4.9693,
+        "max": 4.9711
+      }
+    },
+    "hospital_3": {
+      "samples_processed": 2,
+      "image_tensor_shape": [
+        1,
+        4,
+        64,
+        64,
+        32
+      ],
+      "spatial_shape": [
+        4,
+        64,
+        64,
+        32
+      ],
+      "label_shape": [
+        1,
+        64,
+        64,
+        32
+      ],
+      "channels": 4,
+      "intensity_stats_nonzero": {
+        "mean": -0.0,
+        "std": 1.0,
+        "min": -4.9126,
+        "max": 4.4669
+      }
+    }
+  }
+}
