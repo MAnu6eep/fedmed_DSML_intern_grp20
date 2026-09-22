@@ -332,9 +332,8 @@ def get_federated_evaluate_fn(
         parameters: List[np.ndarray],
         config: Dict[str, Union[bool, bytes, float, int, str]],
     ) -> Optional[Tuple[float, Dict[str, Union[bool, bytes, float, int, str]]]]:
-        from fedmed.federation.server import set_parameters
-
-        set_parameters(model, parameters)
+        for param, new_val in zip(model.parameters(), parameters):
+            param.data.copy_(torch.from_numpy(new_val))
 
         metrics = evaluate_and_extract_slices(
             model=model,

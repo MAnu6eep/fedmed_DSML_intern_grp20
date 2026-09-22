@@ -1,0 +1,37 @@
+{
+  "status": "PASSED",
+  "timestamp": "2026-09-22 23:42:13",
+  "pipeline_stages": {
+    "preprocessing": {
+      "input_channels": 4,
+      "spatial_shape": [
+        4,
+        64,
+        64,
+        32
+      ],
+      "orientation": "RAS"
+    },
+    "inference": {
+      "val_loss": 1.202012,
+      "val_dice": 0.095176,
+      "val_iou": 0.049966,
+      "samples_evaluated": 4
+    },
+    "visualization_slicing": {
+      "payload_status": "SUCCESS",
+      "orientations_extracted": [
+        "sagittal",
+        "coronal",
+        "axial"
+      ],
+      "mri_mask_shape_alignment": true,
+      "base64_preview_generated": true
+    },
+    "federated_integration": {
+      "fl_callback_executed": true,
+      "fl_round_artifact_exists": true
+    }
+  },
+  "issues_identified": []
+}
