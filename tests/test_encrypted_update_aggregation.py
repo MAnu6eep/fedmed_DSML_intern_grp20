@@ -118,3 +118,71 @@ def test_encrypted_update_can_travel_through_flower_transport():
 
     assert "layer.weight" in received["encrypted"]
     assert "layer.bias" in received["plaintext"]
+
+
+
+def test_end_to_end_selective_encrypted_aggregation():
+    engine = TenSEALEngine()
+
+    client_1 = {
+        "layer.weight": torch.tensor([1.0, 2.0, 3.0]),
+        "layer.bias": torch.tensor([10.0]),
+    }
+
+    client_2 = {
+        "layer.weight": torch.tensor([4.0, 5.0, 6.0]),
+        "layer.bias": torch.tensor([20.0]),
+    }
+
+    selected = ["layer.weight"]
+
+    # Client-side selective encryption.
+    update_1 = create_encrypted_update(
+        engine,
+        client_1,
+        selected,
+    )
+    update_2 = create_encrypted_update(
+        engine,
+        client_2,
+        selected,
+    )
+
+    # Verify selected parameter is encrypted.
+    assert "layer.weight" in update_1["encrypted"]
+    assert "layer.weight" in update_2["encrypted"]
+
+    # Verify non-selected parameter remains plaintext.
+    assert "layer.bias" in update_1["plaintext"]
+    assert "layer.bias" in update_2["plaintext"]
+
+    # Simulate Flower transport.
+    update_1 = decode_encrypted_update_from_flower(
+        encode_encrypted_update_for_flower(update_1)
+    )
+    update_2 = decode_encrypted_update_from_flower(
+        encode_encrypted_update_for_flower(update_2)
+    )
+
+    # Server-side encrypted aggregation.
+    aggregated = aggregate_encrypted_parameters(
+        engine,
+        [update_1, update_2],
+    )
+
+    # Verify structure.
+    assert "layer.weight" in aggregated
+
+    # Decrypt only after aggregation for verification.
+    ciphertext = engine.deserialize_ciphertext(
+        aggregated["layer.weight"]
+    )
+
+    result = engine.decrypt_vector(
+        ciphertext,
+        original_shape=torch.Size([3]),
+    )
+
+    expected = torch.tensor([5.0, 7.0, 9.0])
+
+    assert torch.allclose(result, expected, atol=1e-3)
