@@ -91,6 +91,7 @@ def start_node(hospital_id: str) -> HospitalNode:
     config = load_hospital_config(hospital_id)
 
     node_config = config["node"]
+    server_config = config.get("server", {})
     data_config = config["data"]
 
     node = HospitalNode(
@@ -99,6 +100,8 @@ def start_node(hospital_id: str) -> HospitalNode:
         host=node_config.get("host", "127.0.0.1"),
         port=node_config["port"],
         grpc_port=node_config["grpc_port"],
+        health_host=server_config.get("host", "127.0.0.1"),
+        health_port=server_config.get("port", 8080),
         data_dir=data_config["data_dir"],
     )
 
@@ -126,12 +129,16 @@ def start_grpc_server(node: HospitalNode):
 
 
 def main() -> None:
-    """Start the hospital node with HTTP health and secure gRPC."""
+    """Start the hospital node with HTTP health, secure gRPC, and heartbeat monitoring."""
     hospital_id = os.getenv("HOSPITAL_ID", "hospital_a")
 
     node = start_node(hospital_id)
     start_health_server()
     grpc_server = start_grpc_server(node)
+
+    from fedmed.nodes.heartbeat import heartbeat_monitor
+
+    heartbeat_monitor.start()
 
     print(
         f"FedMed hospital node started: "
@@ -149,6 +156,7 @@ def main() -> None:
             f"FedMed hospital node stopping: {node.id}",
             flush=True,
         )
+        heartbeat_monitor.stop()
         grpc_server.stop(0)
 
 
