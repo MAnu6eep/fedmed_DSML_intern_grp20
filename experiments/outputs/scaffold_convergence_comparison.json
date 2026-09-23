@@ -36,21 +36,21 @@
         },
         {
           "round": 2,
-          "train_loss": 1.0248891909917195,
-          "global_loss": 0.9530169069766998,
-          "val_loss": 0.9530169069766998,
-          "val_dice": 0.09260404917101066,
-          "parameter_delta": 7.369487356571504,
+          "train_loss": 1.02488774061203,
+          "global_loss": 0.9530076483885447,
+          "val_loss": 0.9530076483885447,
+          "val_dice": 0.09253179468214512,
+          "parameter_delta": 7.369502742985301,
           "participants": 3,
           "failures": 0
         },
         {
           "round": 3,
-          "train_loss": 0.9528751720984777,
-          "global_loss": 0.9501285950342814,
-          "val_loss": 0.9501285950342814,
-          "val_dice": 0.11508051802714665,
-          "parameter_delta": 4.68631072893113,
+          "train_loss": 0.9528230726718903,
+          "global_loss": 0.9501322706540426,
+          "val_loss": 0.9501322706540426,
+          "val_dice": 0.11473976137737434,
+          "parameter_delta": 4.6857003540252355,
           "participants": 3,
           "failures": 0
         }
@@ -82,21 +82,21 @@
         },
         {
           "round": 2,
-          "train_loss": 1.0250512013832729,
-          "global_loss": 0.9530119846264521,
-          "val_loss": 0.9530119846264521,
-          "val_dice": 0.09298424671093623,
-          "parameter_delta": 7.368522410368859,
+          "train_loss": 1.025053049127261,
+          "global_loss": 0.9530172000328699,
+          "val_loss": 0.9530172000328699,
+          "val_dice": 0.0929056778550148,
+          "parameter_delta": 7.368495430858744,
           "participants": 3,
           "failures": 0
         },
         {
           "round": 3,
-          "train_loss": 0.9528451611598333,
-          "global_loss": 0.9500721494356791,
-          "val_loss": 0.9500721494356791,
-          "val_dice": 0.11415132507681847,
-          "parameter_delta": 4.677553849132113,
+          "train_loss": 0.9527818957964579,
+          "global_loss": 0.9500740716854731,
+          "val_loss": 0.9500740716854731,
+          "val_dice": 0.1140431488553683,
+          "parameter_delta": 4.678755269907894,
           "participants": 3,
           "failures": 0
         }
@@ -128,21 +128,21 @@
         },
         {
           "round": 2,
-          "train_loss": 1.0253017842769623,
-          "global_loss": 0.9540446798006693,
-          "val_loss": 0.9540446798006693,
+          "train_loss": 1.0253017942110698,
+          "global_loss": 0.9540446847677231,
+          "val_loss": 0.9540446847677231,
           "val_dice": 0.10734583623707294,
-          "parameter_delta": 7.345505025642396,
+          "parameter_delta": 7.345505193419209,
           "participants": 3,
           "failures": 0
         },
         {
           "round": 3,
-          "train_loss": 0.9835439870754877,
-          "global_loss": 0.9522294749816259,
-          "val_loss": 0.9522294749816259,
+          "train_loss": 0.9835439771413803,
+          "global_loss": 0.9522294650475184,
+          "val_loss": 0.9522294650475184,
           "val_dice": 0.15240378181139627,
-          "parameter_delta": 4.559146112695722,
+          "parameter_delta": 4.559146189015966,
           "participants": 3,
           "failures": 0
         }
