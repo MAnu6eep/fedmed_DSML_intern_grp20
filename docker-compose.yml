@@ -1,16 +1,107 @@
 services:
-  fedmed-server:
+
+  # ---------------------------------------------------------------------------
+  # Flower federation infrastructure
+  # ---------------------------------------------------------------------------
+  federation-server:
+    image: fedmed_dsml_intern_grp20-hospital-a:latest
+    working_dir: /app
+    command: >
+      flower-superlink
+      --insecure
+      --fleet-api-address 0.0.0.0:9092
+      --control-api-address 0.0.0.0:9093
+      --serverappio-api-address 0.0.0.0:9091
+    volumes:
+      - ./fedmed:/app/fedmed:ro
+      - ./pyproject.toml:/app/pyproject.toml:ro
+    ports:
+      - "9201:9091"
+      - "9202:9092"
+      - "9203:9093"
+    networks:
+      - fedmed-network
+
+  # ---------------------------------------------------------------------------
+  # Hospital A
+  # ---------------------------------------------------------------------------
+  hospital-a:
+    image: fedmed_dsml_intern_grp20-hospital-a:latest
+    environment:
+      HOSPITAL_ID: hospital_a
+    ports:
+      - "8081:8080"
+      - "9091:9091"
+    volumes:
+      - ./certs/ca/ca.crt:/app/certs/ca/ca.crt:ro
+      - ./certs/hospital_a:/app/certs/hospital_a:ro
+      - ./data:/app/data:ro
+    networks:
+      - fedmed-network
+
+  # ---------------------------------------------------------------------------
+  # Hospital B
+  # ---------------------------------------------------------------------------
+  hospital-b:
+    image: fedmed_dsml_intern_grp20-hospital-a:latest
+    environment:
+      HOSPITAL_ID: hospital_b
+    ports:
+      - "8082:8080"
+      - "9092:9092"
+    volumes:
+      - ./certs/ca/ca.crt:/app/certs/ca/ca.crt:ro
+      - ./certs/hospital_b:/app/certs/hospital_b:ro
+      - ./data:/app/data:ro
+    networks:
+      - fedmed-network
+
+  # ---------------------------------------------------------------------------
+  # Hospital C
+  # ---------------------------------------------------------------------------
+  hospital-c:
+    image: fedmed_dsml_intern_grp20-hospital-a:latest
+    environment:
+      HOSPITAL_ID: hospital_c
+    ports:
+      - "8083:8080"
+      - "9093:9093"
+    volumes:
+      - ./certs/ca/ca.crt:/app/certs/ca/ca.crt:ro
+      - ./certs/hospital_c:/app/certs/hospital_c:ro
+      - ./data:/app/data:ro
+    networks:
+      - fedmed-network
+
+  # ---------------------------------------------------------------------------
+  # FastAPI backend
+  # ---------------------------------------------------------------------------
+  fedmed-api:
     image: python:3.11-slim
     working_dir: /app
     volumes:
       - ./api:/app/api
+    environment:
+      HOSPITAL_A_HOST: hospital-a
+      HOSPITAL_A_PORT: 8080
+      HOSPITAL_B_HOST: hospital-b
+      HOSPITAL_B_PORT: 8080
+      HOSPITAL_C_HOST: hospital-c
+      HOSPITAL_C_PORT: 8080
     command: >
-      sh -c "pip install --no-cache-dir fastapi uvicorn pydantic &&
+      sh -c "pip install --no-cache-dir fastapi uvicorn pydantic websockets &&
              uvicorn api.main:app --host 0.0.0.0 --port 8000"
     ports:
       - "8000:8000"
     networks:
       - fedmed-network
+    depends_on:
+      hospital-a:
+        condition: service_healthy
+      hospital-b:
+        condition: service_healthy
+      hospital-c:
+        condition: service_healthy
     healthcheck:
       test:
         [
@@ -24,51 +115,35 @@ services:
       retries: 3
       start_period: 10s
 
-  hospital-a:
-    image: fedmed_dsml_intern_grp20-hospital-a:latest
-    environment:
-      HOSPITAL_ID: hospital_a
-    ports:
-      - "8081:8080"
-      - "9091:9091"
+  # ---------------------------------------------------------------------------
+  # React / Vite dashboard
+  # ---------------------------------------------------------------------------
+  dashboard:
+    image: node:22-alpine
+    working_dir: /app
     volumes:
-      - ./certs/ca/ca.crt:/app/certs/ca/ca.crt:ro
-      - ./certs/hospital_a:/app/certs/hospital_a:ro
+      - ./dashboard:/app
+      - dashboard_node_modules:/app/node_modules
+    command: >
+      sh -c "npm ci &&
+             npm run dev -- --host 0.0.0.0"
+    ports:
+      - "5173:5173"
     networks:
       - fedmed-network
     depends_on:
-      - fedmed-server
+      fedmed-api:
+        condition: service_healthy
 
-  hospital-b:
-    image: fedmed_dsml_intern_grp20-hospital-a:latest
-    environment:
-      HOSPITAL_ID: hospital_b
-    ports:
-      - "8082:8080"
-      - "9092:9092"
-    volumes:
-      - ./certs/ca/ca.crt:/app/certs/ca/ca.crt:ro
-      - ./certs/hospital_b:/app/certs/hospital_b:ro
-    networks:
-      - fedmed-network
-    depends_on:
-      - fedmed-server
-
-  hospital-c:
-    image: fedmed_dsml_intern_grp20-hospital-a:latest
-    environment:
-      HOSPITAL_ID: hospital_c
-    ports:
-      - "8083:8080"
-      - "9093:9093"
-    volumes:
-      - ./certs/ca/ca.crt:/app/certs/ca/ca.crt:ro
-      - ./certs/hospital_c:/app/certs/hospital_c:ro
-    networks:
-      - fedmed-network
-    depends_on:
-      - fedmed-server
-
+# ---------------------------------------------------------------------------
+# Shared network
+# ---------------------------------------------------------------------------
 networks:
   fedmed-network:
     driver: bridge
+
+# ---------------------------------------------------------------------------
+# Frontend dependency volume
+# ---------------------------------------------------------------------------
+volumes:
+  dashboard_node_modules:
