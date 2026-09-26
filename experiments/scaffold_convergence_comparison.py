@@ -15,6 +15,9 @@ The experiment records:
     - SCAFFOLD status
     - SCAFFOLD participating clients
     - SCAFFOLD round
+
+The experiment runner also supports the common
+ExperimentConfig configuration system.
 """
 
 import json
@@ -32,13 +35,15 @@ import numpy as np
 import torch
 from torch.utils.data import DataLoader, Dataset
 
+from fedmed.config.experiment import (
+    DatasetConfig,
+    ExperimentConfig,
+)
 from fedmed.core.model import get_model
 from fedmed.data.partitioner import partition_dirichlet
 from fedmed.federation.client import FedMedClient
 from fedmed.federation.server import (
     build_server_app,
-    create_fedprox_strategy,
-    create_scaffold_strategy,
     create_server_strategy,
 )
 
@@ -51,6 +56,7 @@ NUM_CLIENTS = 3
 NUM_ROUNDS = 3
 LOCAL_EPOCHS = 1
 LEARNING_RATE = 1e-4
+BATCH_SIZE = 1
 PROXIMAL_MU = 0.01
 
 DIRICHLET_ALPHA = 0.5
@@ -118,6 +124,7 @@ class SyntheticHospitalDataset(Dataset):
 def create_client(
     context,
     partitions,
+    batch_size=1,
 ):
     """Create one simulated hospital client."""
 
@@ -139,13 +146,13 @@ def create_client(
 
     train_loader = DataLoader(
         dataset,
-        batch_size=1,
+        batch_size=batch_size,
         shuffle=False,
     )
 
     val_loader = DataLoader(
         dataset,
-        batch_size=1,
+        batch_size=batch_size,
         shuffle=False,
     )
 
@@ -167,6 +174,183 @@ def create_client(
     )
 
     return client.to_client()
+
+
+# ============================================================
+# CENTRALIZED EXPERIMENT
+# ============================================================
+
+
+def run_centralized_experiment(
+    config: ExperimentConfig,
+    partitions,
+):
+    """
+    Run a centralized experiment using all hospital data.
+
+    This keeps the same model/training configuration as the
+    federated experiments but performs local training on the
+    combined dataset.
+    """
+
+    all_volumes = []
+
+    for hospital_volumes in partitions.values():
+        all_volumes.extend(hospital_volumes)
+
+    dataset = SyntheticHospitalDataset(
+        all_volumes
+    )
+
+    train_loader = DataLoader(
+        dataset,
+        batch_size=config.batch_size,
+        shuffle=False,
+    )
+
+    val_loader = DataLoader(
+        dataset,
+        batch_size=config.batch_size,
+        shuffle=False,
+    )
+
+    torch.manual_seed(
+        config.dataset.seed
+    )
+
+    model = get_model(
+        in_channels=4,
+        out_channels=1,
+    )
+
+    from fedmed.core.training import run_local_training
+
+    result = run_local_training(
+        model=model,
+        train_loader=train_loader,
+        val_loader=val_loader,
+        epochs=config.local_epochs,
+        learning_rate=config.learning_rate,
+    )
+
+    train_loss = float(
+        result.get("train_loss", 0.0)
+    )
+
+    val_loss = float(
+        result.get("val_loss", 0.0)
+    )
+
+    val_dice = float(
+        result.get("val_dice", 0.0)
+    )
+
+    val_iou = float(
+        result.get("val_iou", 0.0)
+    )
+
+    return {
+        "distribution": "Centralized",
+        "strategy": "Centralized",
+        "settings": {
+            "num_clients": NUM_CLIENTS,
+            "num_rounds": config.num_rounds,
+            "local_epochs": config.local_epochs,
+            "learning_rate": config.learning_rate,
+            "batch_size": config.batch_size,
+            "proximal_mu": None,
+            "partition": config.dataset.partition,
+            "dirichlet_alpha": (
+                config.dataset.dirichlet_alpha
+            ),
+            "seed": config.dataset.seed,
+        },
+        "history": [
+            {
+                "round": 1,
+                "train_loss": train_loss,
+                "global_loss": val_loss,
+                "val_loss": val_loss,
+                "val_dice": val_dice,
+                "val_iou": val_iou,
+                "parameter_delta": 0.0,
+                "participants": 1,
+                "failures": 0,
+                "scaffold": False,
+                "scaffold_clients": 0,
+                "scaffold_round": 0,
+            }
+        ],
+    }
+
+
+# ============================================================
+# STRATEGY FIT CONFIGURATION
+# ============================================================
+
+
+def configure_strategy_fit(
+    strategy,
+    config: ExperimentConfig,
+):
+    """
+    Inject ExperimentConfig training parameters into the
+    Flower Strategy.configure_fit method.
+
+    Existing strategy-specific configuration is preserved.
+
+    This is particularly important for SCAFFOLD because its
+    configure_fit method already adds the server control
+    variate and other SCAFFOLD-specific fields.
+    """
+
+    original_configure_fit = (
+        strategy.configure_fit
+    )
+
+    client_fit_config = (
+        config.to_client_config()
+    )
+
+    def configure_fit(
+        server_round,
+        parameters,
+        client_manager,
+    ):
+        configured_clients = (
+            original_configure_fit(
+                server_round,
+                parameters,
+                client_manager,
+            )
+        )
+
+        updated_clients = []
+
+        for client, fit_ins in configured_clients:
+
+            merged_config = {
+                **fit_ins.config,
+                **client_fit_config,
+            }
+
+            updated_fit_ins = fl.common.FitIns(
+                parameters=fit_ins.parameters,
+                config=merged_config,
+            )
+
+            updated_clients.append(
+                (
+                    client,
+                    updated_fit_ins,
+                )
+            )
+
+        return updated_clients
+
+    strategy.configure_fit = configure_fit
+
+    return strategy
 
 
 # ============================================================
@@ -204,6 +388,7 @@ def record_strategy_metrics(
         weighted_val_dice = 0.0
 
         for _, fit_res in results:
+
             weight = fit_res.num_examples
 
             weighted_train_loss += (
@@ -305,11 +490,7 @@ def record_strategy_metrics(
             val_dice = 0.0
 
         # ----------------------------------------------------
-        # Record structured round history.
-        #
-        # These SCAFFOLD fields allow the end-to-end test
-        # to verify that SCAFFOLD was active, all clients
-        # participated, and rounds progressed correctly.
+        # SCAFFOLD verification fields.
         # ----------------------------------------------------
 
         is_scaffold = (
@@ -327,13 +508,14 @@ def record_strategy_metrics(
                 "participants": len(results),
                 "failures": len(failures),
 
-                # SCAFFOLD verification metrics
                 "scaffold": is_scaffold,
+
                 "scaffold_clients": (
                     len(results)
                     if is_scaffold
                     else 0
                 ),
+
                 "scaffold_round": (
                     server_round
                     if is_scaffold
@@ -355,23 +537,92 @@ def record_strategy_metrics(
 
 
 # ============================================================
-# RUN ONE STRATEGY
+# RUN ONE EXPERIMENT
 # ============================================================
 
 
 def run_experiment(
-    strategy_name: str,
+    config,
     partitions,
 ):
-    """Run one FL strategy on the same Non-IID partition."""
+    """
+    Run one experiment selected by ExperimentConfig.
+
+    Supported strategies:
+        centralized
+        fedavg
+        fedprox
+        scaffold
+
+    Backward compatibility:
+        run_experiment("FedAvg", partitions)
+        run_experiment("FedProx", partitions)
+        run_experiment("SCAFFOLD", partitions)
+    """
+
+    # --------------------------------------------------------
+    # Backward compatibility
+    # --------------------------------------------------------
+
+    if isinstance(config, str):
+
+        config = ExperimentConfig(
+            strategy=config,
+            num_rounds=NUM_ROUNDS,
+            local_epochs=LOCAL_EPOCHS,
+            learning_rate=LEARNING_RATE,
+            batch_size=BATCH_SIZE,
+            dataset=DatasetConfig(
+                name="brats",
+                partition="non_iid",
+                dirichlet_alpha=DIRICHLET_ALPHA,
+                seed=SEED,
+            ),
+            proximal_mu=PROXIMAL_MU,
+        )
+
+    elif not isinstance(
+        config,
+        ExperimentConfig,
+    ):
+
+        raise TypeError(
+            "config must be an ExperimentConfig "
+            "instance or a supported strategy string."
+        )
+
+    # --------------------------------------------------------
+    # Centralized
+    # --------------------------------------------------------
+
+    if config.strategy == "centralized":
+
+        return run_centralized_experiment(
+            config=config,
+            partitions=partitions,
+        )
+
+    # --------------------------------------------------------
+    # Federated strategies
+    # --------------------------------------------------------
 
     history = []
 
+    strategy_name = config.strategy
+
+    display_name = {
+        "fedavg": "FedAvg",
+        "fedprox": "FedProx",
+        "scaffold": "SCAFFOLD",
+    }[strategy_name]
+
     # --------------------------------------------------------
-    # Build the same initial model used by clients.
+    # Build initial model.
     # --------------------------------------------------------
 
-    torch.manual_seed(SEED)
+    torch.manual_seed(
+        config.dataset.seed
+    )
 
     initial_model = get_model(
         in_channels=4,
@@ -395,44 +646,40 @@ def run_experiment(
     )
 
     # --------------------------------------------------------
-    # Select strategy.
+    # Create Flower strategy.
     # --------------------------------------------------------
 
-    if strategy_name == "FedAvg":
+    strategy = create_server_strategy(
+        strategy_name=strategy_name,
+        proximal_mu=config.proximal_mu,
+        initial_parameters=initial_parameters,
+        fraction_fit=1.0,
+        min_fit_clients=NUM_CLIENTS,
+        min_available_clients=NUM_CLIENTS,
+        local_epochs=config.local_epochs,
+        learning_rate=config.learning_rate,
+    )
 
-        strategy = create_server_strategy(
-            fraction_fit=1.0,
-            min_fit_clients=NUM_CLIENTS,
-            min_available_clients=NUM_CLIENTS,
-        )
+    # --------------------------------------------------------
+    # Inject configured client training parameters.
+    #
+    # This preserves existing SCAFFOLD server configuration
+    # while adding local_epochs / learning_rate / etc.
+    # --------------------------------------------------------
 
-    elif strategy_name == "FedProx":
+    strategy = configure_strategy_fit(
+        strategy,
+        config,
+    )
 
-        strategy = create_fedprox_strategy(
-            proximal_mu=PROXIMAL_MU,
-            fraction_fit=1.0,
-            min_fit_clients=NUM_CLIENTS,
-            min_available_clients=NUM_CLIENTS,
-        )
+    # --------------------------------------------------------
+    # Record metrics without changing aggregation.
+    # --------------------------------------------------------
 
-    elif strategy_name == "SCAFFOLD":
-
-        strategy = create_scaffold_strategy(
-            initial_parameters=initial_parameters,
-        )
-
-    else:
-
-        raise ValueError(
-            f"Unknown strategy: {strategy_name}"
-        )
-
-    # Record metrics without changing the
-    # actual aggregation algorithm.
     strategy = record_strategy_metrics(
         strategy,
         history,
-        strategy_name,
+        display_name,
     )
 
     # --------------------------------------------------------
@@ -443,6 +690,7 @@ def run_experiment(
         client_fn=lambda context: create_client(
             context,
             partitions,
+            batch_size=config.batch_size,
         )
     )
 
@@ -452,7 +700,7 @@ def run_experiment(
 
     server_app = build_server_app(
         strategy=strategy,
-        num_rounds=NUM_ROUNDS,
+        num_rounds=config.num_rounds,
     )
 
     # --------------------------------------------------------
@@ -477,20 +725,25 @@ def run_experiment(
 
     return {
         "distribution": "Non-IID",
-        "strategy": strategy_name,
+        "strategy": display_name,
         "settings": {
             "num_clients": NUM_CLIENTS,
-            "num_rounds": NUM_ROUNDS,
-            "local_epochs": LOCAL_EPOCHS,
-            "learning_rate": LEARNING_RATE,
+            "num_rounds": config.num_rounds,
+            "local_epochs": config.local_epochs,
+            "learning_rate": config.learning_rate,
+            "batch_size": config.batch_size,
             "proximal_mu": (
-                PROXIMAL_MU
-                if strategy_name == "FedProx"
+                config.proximal_mu
+                if strategy_name == "fedprox"
                 else None
             ),
-            "partition": "Dirichlet",
-            "dirichlet_alpha": DIRICHLET_ALPHA,
-            "seed": SEED,
+            "partition": (
+                config.dataset.partition
+            ),
+            "dirichlet_alpha": (
+                config.dataset.dirichlet_alpha
+            ),
+            "seed": config.dataset.seed,
         },
         "history": history,
     }
@@ -507,8 +760,22 @@ def main():
     torch.set_num_threads(1)
     torch.manual_seed(SEED)
 
+    # --------------------------------------------------------
+    # Dataset configuration
+    # --------------------------------------------------------
+
+    dataset_config = DatasetConfig(
+        name="brats",
+        partition="non_iid",
+        dirichlet_alpha=DIRICHLET_ALPHA,
+        seed=SEED,
+    )
+
+    # --------------------------------------------------------
     # Same volumes and labels used by the
     # existing FedAvg/FedProx Non-IID experiment.
+    # --------------------------------------------------------
+
     volumes = [
         f"volume_{i:02d}"
         for i in range(12)
@@ -537,8 +804,8 @@ def main():
         volumes,
         labels,
         num_clients=NUM_CLIENTS,
-        alpha=DIRICHLET_ALPHA,
-        seed=SEED,
+        alpha=dataset_config.dirichlet_alpha,
+        seed=dataset_config.seed,
     )
 
     print(
@@ -565,23 +832,59 @@ def main():
         )
 
     # --------------------------------------------------------
-    # Run all three strategies on the same partition.
+    # Create experiment configurations.
+    # --------------------------------------------------------
+
+    experiment_configs = [
+        ExperimentConfig(
+            strategy="fedavg",
+            num_rounds=NUM_ROUNDS,
+            local_epochs=LOCAL_EPOCHS,
+            learning_rate=LEARNING_RATE,
+            batch_size=BATCH_SIZE,
+            dataset=dataset_config,
+            proximal_mu=PROXIMAL_MU,
+        ),
+        ExperimentConfig(
+            strategy="fedprox",
+            num_rounds=NUM_ROUNDS,
+            local_epochs=LOCAL_EPOCHS,
+            learning_rate=LEARNING_RATE,
+            batch_size=BATCH_SIZE,
+            dataset=dataset_config,
+            proximal_mu=PROXIMAL_MU,
+        ),
+        ExperimentConfig(
+            strategy="scaffold",
+            num_rounds=NUM_ROUNDS,
+            local_epochs=LOCAL_EPOCHS,
+            learning_rate=LEARNING_RATE,
+            batch_size=BATCH_SIZE,
+            dataset=dataset_config,
+            proximal_mu=PROXIMAL_MU,
+        ),
+    ]
+
+    # --------------------------------------------------------
+    # Run all strategies on the same partition.
     # --------------------------------------------------------
 
     results = []
 
-    for strategy_name in [
-        "FedAvg",
-        "FedProx",
-        "SCAFFOLD",
-    ]:
+    for config in experiment_configs:
+
+        display_name = {
+            "fedavg": "FedAvg",
+            "fedprox": "FedProx",
+            "scaffold": "SCAFFOLD",
+        }[config.strategy]
 
         print(
             f"\n==============================================="
         )
 
         print(
-            f"              Running {strategy_name}"
+            f"              Running {display_name}"
         )
 
         print(
@@ -589,7 +892,7 @@ def main():
         )
 
         result = run_experiment(
-            strategy_name,
+            config,
             partitions,
         )
 
@@ -599,17 +902,17 @@ def main():
             if metrics["failures"] != 0:
 
                 raise RuntimeError(
-                    f"{strategy_name} failed in "
+                    f"{display_name} failed in "
                     f"round {metrics['round']}: "
                     f"{metrics['failures']} failures."
                 )
 
-        if len(result["history"]) != NUM_ROUNDS:
+        if len(result["history"]) != config.num_rounds:
 
             raise RuntimeError(
-                f"{strategy_name} produced "
+                f"{display_name} produced "
                 f"{len(result['history'])} rounds; "
-                f"expected {NUM_ROUNDS}."
+                f"expected {config.num_rounds}."
             )
 
         results.append(result)
@@ -655,12 +958,28 @@ def main():
         "status": "COMPLETED",
         "distribution": "Non-IID",
         "partition_method": "Dirichlet",
-        "dirichlet_alpha": DIRICHLET_ALPHA,
+        "dirichlet_alpha": (
+            dataset_config.dirichlet_alpha
+        ),
         "strategies": [
             "FedAvg",
             "FedProx",
             "SCAFFOLD",
         ],
+        "experiment_configuration": {
+            "num_clients": NUM_CLIENTS,
+            "num_rounds": NUM_ROUNDS,
+            "local_epochs": LOCAL_EPOCHS,
+            "learning_rate": LEARNING_RATE,
+            "batch_size": BATCH_SIZE,
+            "proximal_mu": PROXIMAL_MU,
+            "dataset": dataset_config.name,
+            "partition": dataset_config.partition,
+            "dirichlet_alpha": (
+                dataset_config.dirichlet_alpha
+            ),
+            "seed": dataset_config.seed,
+        },
         "experiments": results,
     }
 

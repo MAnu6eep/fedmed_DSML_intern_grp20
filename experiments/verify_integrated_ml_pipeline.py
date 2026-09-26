@@ -35,6 +35,7 @@ from fedmed.data.slice_extraction import (
     extract_visualization_payload,
     find_best_tumor_slices,
 )
+from fedmed.federation.server import get_parameters
 from scripts.setup_data import generate_mock_brats_data
 
 # Configure artifact output directory
@@ -54,7 +55,9 @@ logger = logging.getLogger("integrated_ml_pipeline")
 def run_integrated_ml_pipeline_verification() -> Dict[str, Any]:
     """Runs end-to-end verification of the integrated ML pipeline."""
     logger.info("=" * 70)
-    logger.info("  Starting Integrated ML Preprocessing, Inference & Visualization Verification")
+    logger.info(
+        "  Starting Integrated ML Preprocessing, Inference & Visualization Verification"
+    )
     logger.info("=" * 70)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -71,13 +74,18 @@ def run_integrated_ml_pipeline_verification() -> Dict[str, Any]:
 
     image_files = sorted(list(images_dir.glob("*.nii.gz")))[:4]
     label_files = sorted(list(labels_dir.glob("*.nii.gz")))[:4]
+
     data_dicts = [
         {"image": str(img), "label": str(lbl)}
         for img, lbl in zip(image_files, label_files)
     ]
 
     # 2. Build MONAI Preprocessing DataLoader
-    logger.info("[2/5] Initializing MONAI dataloader with intensity normalization & spatial resampling...")
+    logger.info(
+        "[2/5] Initializing MONAI dataloader with intensity normalization "
+        "& spatial resampling..."
+    )
+
     val_loader = create_brats_dataloader(
         data_dicts,
         batch_size=1,
@@ -98,7 +106,11 @@ def run_integrated_ml_pipeline_verification() -> Dict[str, Any]:
     logger.info(f"   • Preprocessed Label Shape : {tuple(lbl_tensor.shape)}")
 
     # 3. Model Instantiation & 3D U-Net Inference
-    logger.info("[3/5] Instantiating 3D U-Net model and executing sliding window inference...")
+    logger.info(
+        "[3/5] Instantiating 3D U-Net model and executing "
+        "sliding window inference..."
+    )
+
     model = get_model(in_channels=4, out_channels=1).to(device)
 
     eval_results = evaluate_and_extract_slices(
@@ -110,11 +122,18 @@ def run_integrated_ml_pipeline_verification() -> Dict[str, Any]:
         device=device,
     )
 
-    logger.info(f"   • Validation Dice Score : {eval_results['dice'] * 100:.2f}%")
-    logger.info(f"   • Validation Loss       : {eval_results['val_loss']:.4f}")
+    logger.info(
+        f"   • Validation Dice Score : {eval_results['dice'] * 100:.2f}%"
+    )
+    logger.info(
+        f"   • Validation Loss       : {eval_results['val_loss']:.4f}"
+    )
 
     # 4. 2D Slice Extraction & Alignment Verification
-    logger.info("[4/5] Verifying 2D tumor slice extraction and MRI-mask alignment...")
+    logger.info(
+        "[4/5] Verifying 2D tumor slice extraction and MRI-mask alignment..."
+    )
+
     vis_payload = eval_results.get("visualization_payload", {})
     by_orient = vis_payload.get("slices_by_orientation", {})
 
@@ -135,21 +154,37 @@ def run_integrated_ml_pipeline_verification() -> Dict[str, Any]:
                 and len(mask_arr) == shape[0]
                 and len(mask_arr[0]) == shape[1]
             )
+
             alignment_checks.append(is_aligned)
 
             # Base64 preview assertion
-            has_b64 = s_info.get("mri_base64") is not None and s_info.get("mask_base64") is not None
+            has_b64 = (
+                s_info.get("mri_base64") is not None
+                and s_info.get("mask_base64") is not None
+            )
+
             base64_checks.append(has_b64)
 
     all_aligned = len(alignment_checks) > 0 and all(alignment_checks)
     all_b64_valid = len(base64_checks) > 0 and all(base64_checks)
 
-    logger.info(f"   • 2D MRI-Mask Shape Alignment : {'PASSED' if all_aligned else 'FAILED'}")
-    logger.info(f"   • Base64 Image Preview Generation : {'PASSED' if all_b64_valid else 'FAILED'}")
+    logger.info(
+        f"   • 2D MRI-Mask Shape Alignment : "
+        f"{'PASSED' if all_aligned else 'FAILED'}"
+    )
+
+    logger.info(
+        f"   • Base64 Image Preview Generation : "
+        f"{'PASSED' if all_b64_valid else 'FAILED'}"
+    )
 
     # 5. Federated Strategy Callback Integration
-    logger.info("[5/5] Testing Flower federated evaluation callback and artifact export...")
+    logger.info(
+        "[5/5] Testing Flower federated evaluation callback and artifact export..."
+    )
+
     collector = RoundMetricCollector()
+
     eval_fn = get_federated_evaluate_fn(
         model=model,
         val_loader=val_loader,
@@ -157,14 +192,28 @@ def run_integrated_ml_pipeline_verification() -> Dict[str, Any]:
         save_outputs=True,
     )
 
-    params = [p.detach().cpu().numpy() for p in model.parameters()]
-    fl_loss, fl_metrics = eval_fn(server_round=1, parameters=params, config={})
+    # Use the complete model state_dict representation expected by
+    # the federated evaluation callback.
+    params = get_parameters(model)
+
+    fl_loss, fl_metrics = eval_fn(
+        server_round=1,
+        parameters=params,
+        config={},
+    )
 
     fl_artifact = OUTPUT_DIR / "federated_visualization_round_1.json"
     fl_artifact_exists = fl_artifact.exists()
 
-    logger.info(f"   • FL Evaluation Callback Output : Loss {fl_loss:.4f}, Dice {fl_metrics['dice']*100:.2f}%")
-    logger.info(f"   • Federated Visualization Artifact Saved : {fl_artifact_exists}")
+    logger.info(
+        f"   • FL Evaluation Callback Output : "
+        f"Loss {fl_loss:.4f}, Dice {fl_metrics['dice'] * 100:.2f}%"
+    )
+
+    logger.info(
+        f"   • Federated Visualization Artifact Saved : "
+        f"{fl_artifact_exists}"
+    )
 
     # Consolidate Verification Summary
     is_fully_functional = (
@@ -207,8 +256,12 @@ def run_integrated_ml_pipeline_verification() -> Dict[str, Any]:
         json.dump(report, f, indent=2)
 
     logger.info("-" * 70)
-    logger.info(f"  Integrated ML Pipeline Verification Status: {report['status']}")
-    logger.info(f"  Report saved to: {REPORT_PATH.relative_to(PROJECT_ROOT)}")
+    logger.info(
+        f"  Integrated ML Pipeline Verification Status: {report['status']}"
+    )
+    logger.info(
+        f"  Report saved to: {REPORT_PATH.relative_to(PROJECT_ROOT)}"
+    )
     logger.info("=" * 70)
 
     return report
