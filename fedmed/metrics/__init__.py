@@ -6,6 +6,9 @@ from fedmed.metrics.benchmark_framework import (
     BenchmarkResult,
     BenchmarkSuite,
     SUPPORTED_STRATEGIES,
+    GLOBAL_BENCHMARK_SUITE,
+    create_benchmark_result,
+    record_and_export_benchmark,
 )
 
 __all__ = [
@@ -14,4 +17,7 @@ __all__ = [
     "BenchmarkResult",
     "BenchmarkSuite",
     "SUPPORTED_STRATEGIES",
+    "GLOBAL_BENCHMARK_SUITE",
+    "create_benchmark_result",
+    "record_and_export_benchmark",
 ]

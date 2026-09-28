@@ -19,6 +19,7 @@ The experiment records:
 
 import json
 import sys
+import time
 from pathlib import Path
 from typing import Any, Dict
 
@@ -41,6 +42,7 @@ from fedmed.federation.server import (
     create_scaffold_strategy,
     create_server_strategy,
 )
+from fedmed.metrics.benchmark_framework import SystemMonitor, record_and_export_benchmark
 
 
 # ============================================================
@@ -78,20 +80,16 @@ class SyntheticHospitalDataset(Dataset):
             volume_id.split("_")[-1]
         )
 
-        # Different intensity distributions represent
-        # different hospital/data distributions.
         image_value = (
             (volume_number % 3) + 1
         ) / 3.0
 
-        # 4 MRI channels, matching the project model.
         image = torch.full(
             (4, 32, 32, 16),
             image_value,
             dtype=torch.float32,
         )
 
-        # Single-channel segmentation mask.
         label = torch.zeros(
             (1, 32, 32, 16),
             dtype=torch.float32,
@@ -149,8 +147,6 @@ def create_client(
         shuffle=False,
     )
 
-    # Same architecture as the project
-    # and the SCAFFOLD server.
     torch.manual_seed(SEED)
 
     model = get_model(
@@ -236,8 +232,6 @@ def record_strategy_metrics(
                 )
             )
 
-        # Let the actual strategy perform its
-        # normal parameter aggregation.
         aggregated_parameters, metrics = (
             original_aggregate_fit(
                 server_round,
@@ -282,64 +276,37 @@ def record_strategy_metrics(
             ]
 
         if total_examples > 0:
-
-            train_loss = (
-                weighted_train_loss
-                / total_examples
-            )
-
-            val_loss = (
-                weighted_val_loss
-                / total_examples
-            )
-
-            val_dice = (
-                weighted_val_dice
-                / total_examples
-            )
-
+            train_loss = weighted_train_loss / total_examples
+            val_loss = weighted_val_loss / total_examples
+            val_dice = weighted_val_dice / total_examples
         else:
-
             train_loss = 0.0
             val_loss = 0.0
             val_dice = 0.0
 
-        # ----------------------------------------------------
-        # Record structured round history.
-        #
-        # These SCAFFOLD fields allow the end-to-end test
-        # to verify that SCAFFOLD was active, all clients
-        # participated, and rounds progressed correctly.
-        # ----------------------------------------------------
+        is_scaffold = (strategy_name == "SCAFFOLD")
 
-        is_scaffold = (
-            strategy_name == "SCAFFOLD"
-        )
+        entry = {
+            "round": server_round,
+            "train_loss": train_loss,
+            "global_loss": val_loss,
+            "val_loss": val_loss,
+            "val_dice": val_dice,
+            "parameter_delta": parameter_delta,
+            "participants": len(results),
+            "failures": len(failures),
+            "scaffold": is_scaffold,
+            "scaffold_clients": len(results) if is_scaffold else 0,
+            "scaffold_round": server_round if is_scaffold else 0,
+        }
 
-        history.append(
-            {
-                "round": server_round,
-                "train_loss": train_loss,
-                "global_loss": val_loss,
-                "val_loss": val_loss,
-                "val_dice": val_dice,
-                "parameter_delta": parameter_delta,
-                "participants": len(results),
-                "failures": len(failures),
+        history.append(entry)
 
-                # SCAFFOLD verification metrics
-                "scaffold": is_scaffold,
-                "scaffold_clients": (
-                    len(results)
-                    if is_scaffold
-                    else 0
-                ),
-                "scaffold_round": (
-                    server_round
-                    if is_scaffold
-                    else 0
-                ),
-            }
+        # Automatically record to benchmark suite
+        record_and_export_benchmark(
+            strategy_name=strategy_name,
+            metrics=entry,
+            round_or_epoch=server_round,
         )
 
         return (
@@ -367,10 +334,6 @@ def run_experiment(
 
     history = []
 
-    # --------------------------------------------------------
-    # Build the same initial model used by clients.
-    # --------------------------------------------------------
-
     torch.manual_seed(SEED)
 
     initial_model = get_model(
@@ -394,12 +357,7 @@ def run_experiment(
         )
     )
 
-    # --------------------------------------------------------
-    # Select strategy.
-    # --------------------------------------------------------
-
     if strategy_name == "FedAvg":
-
         strategy = create_server_strategy(
             fraction_fit=1.0,
             min_fit_clients=NUM_CLIENTS,
@@ -407,7 +365,6 @@ def run_experiment(
         )
 
     elif strategy_name == "FedProx":
-
         strategy = create_fedprox_strategy(
             proximal_mu=PROXIMAL_MU,
             fraction_fit=1.0,
@@ -416,28 +373,20 @@ def run_experiment(
         )
 
     elif strategy_name == "SCAFFOLD":
-
         strategy = create_scaffold_strategy(
             initial_parameters=initial_parameters,
         )
 
     else:
-
         raise ValueError(
             f"Unknown strategy: {strategy_name}"
         )
 
-    # Record metrics without changing the
-    # actual aggregation algorithm.
     strategy = record_strategy_metrics(
         strategy,
         history,
         strategy_name,
     )
-
-    # --------------------------------------------------------
-    # Flower client application.
-    # --------------------------------------------------------
 
     client_app = fl.client.ClientApp(
         client_fn=lambda context: create_client(
@@ -446,34 +395,30 @@ def run_experiment(
         )
     )
 
-    # --------------------------------------------------------
-    # Flower server application.
-    # --------------------------------------------------------
-
     server_app = build_server_app(
         strategy=strategy,
         num_rounds=NUM_ROUNDS,
     )
 
-    # --------------------------------------------------------
-    # Run federation.
-    # --------------------------------------------------------
+    with SystemMonitor() as monitor:
+        fl.simulation.run_simulation(
+            server_app=server_app,
+            client_app=client_app,
+            num_supernodes=NUM_CLIENTS,
+            backend_config={
+                "client_resources": {
+                    "num_cpus": 1,
+                    "num_gpus": 0.0,
+                }
+            },
+        )
 
-    fl.simulation.run_simulation(
-        server_app=server_app,
-        client_app=client_app,
-        num_supernodes=NUM_CLIENTS,
-        backend_config={
-            "client_resources": {
-                "num_cpus": 1,
-                "num_gpus": 0.0,
-            }
-        },
-    )
-
-    # --------------------------------------------------------
-    # Return structured experiment result.
-    # --------------------------------------------------------
+    # Attach timing & VRAM info to history
+    for entry in history:
+        entry["execution_time_seconds"] = round(monitor.elapsed_time / max(len(history), 1), 4)
+        entry["vram_peak_mb"] = monitor.vram_peak_mb
+        entry["vram_current_mb"] = monitor.vram_current_mb
+        entry["cuda_available"] = monitor.cuda_available
 
     return {
         "distribution": "Non-IID",
@@ -507,31 +452,16 @@ def main():
     torch.set_num_threads(1)
     torch.manual_seed(SEED)
 
-    # Same volumes and labels used by the
-    # existing FedAvg/FedProx Non-IID experiment.
     volumes = [
         f"volume_{i:02d}"
         for i in range(12)
     ]
 
     labels = [
-        0,
-        0,
-        0,
-        0,
-        1,
-        1,
-        1,
-        1,
-        2,
-        2,
-        2,
-        2,
+        0, 0, 0, 0,
+        1, 1, 1, 1,
+        2, 2, 2, 2,
     ]
-
-    # --------------------------------------------------------
-    # Existing Dirichlet Non-IID partition.
-    # --------------------------------------------------------
 
     partitions = partition_dirichlet(
         volumes,
@@ -542,31 +472,15 @@ def main():
     )
 
     print(
-        "\n==============================================="
-    )
-
-    print(
-        "       NON-IID HOSPITAL PARTITIONS"
-    )
-
-    print(
+        "\n===============================================\n"
+        "       NON-IID HOSPITAL PARTITIONS\n"
         "===============================================\n"
     )
 
-    for (
-        client_id,
-        hospital_volumes,
-    ) in partitions.items():
-
+    for client_id, hospital_volumes in partitions.items():
         print(
-            f"{client_id}: "
-            f"{len(hospital_volumes)} volumes -> "
-            f"{hospital_volumes}"
+            f"{client_id}: {len(hospital_volumes)} volumes -> {hospital_volumes}"
         )
-
-    # --------------------------------------------------------
-    # Run all three strategies on the same partition.
-    # --------------------------------------------------------
 
     results = []
 
@@ -575,17 +489,10 @@ def main():
         "FedProx",
         "SCAFFOLD",
     ]:
-
         print(
-            f"\n==============================================="
-        )
-
-        print(
-            f"              Running {strategy_name}"
-        )
-
-        print(
-            "===============================================\n"
+            f"\n===============================================\n"
+            f"              Running {strategy_name}\n"
+            f"===============================================\n"
         )
 
         result = run_experiment(
@@ -593,11 +500,8 @@ def main():
             partitions,
         )
 
-        # Do not accept a failed experiment as success.
         for metrics in result["history"]:
-
             if metrics["failures"] != 0:
-
                 raise RuntimeError(
                     f"{strategy_name} failed in "
                     f"round {metrics['round']}: "
@@ -605,7 +509,6 @@ def main():
                 )
 
         if len(result["history"]) != NUM_ROUNDS:
-
             raise RuntimeError(
                 f"{strategy_name} produced "
                 f"{len(result['history'])} rounds; "
@@ -614,38 +517,17 @@ def main():
 
         results.append(result)
 
-        # Print round-wise metrics.
         for metrics in result["history"]:
-
             print(
                 f"Round {metrics['round']}: "
-                f"global_loss="
-                f"{metrics['global_loss']:.6f}, "
-                f"val_dice="
-                f"{metrics['val_dice']:.6f}, "
-                f"parameter_delta="
-                f"{metrics['parameter_delta']:.6f}"
+                f"global_loss={metrics['global_loss']:.6f}, "
+                f"val_dice={metrics['val_dice']:.6f}, "
+                f"parameter_delta={metrics['parameter_delta']:.6f}"
             )
 
-    # --------------------------------------------------------
-    # Save structured report.
-    # --------------------------------------------------------
-
-    output_dir = (
-        PROJECT_ROOT
-        / "experiments"
-        / "outputs"
-    )
-
-    output_dir.mkdir(
-        parents=True,
-        exist_ok=True,
-    )
-
-    output_file = (
-        output_dir
-        / "scaffold_convergence_comparison.json"
-    )
+    output_dir = PROJECT_ROOT / "experiments" / "outputs"
+    output_dir.mkdir(parents=True, exist_ok=True)
+    output_file = output_dir / "scaffold_convergence_comparison.json"
 
     report: Dict[str, Any] = {
         "title": (
@@ -664,31 +546,13 @@ def main():
         "experiments": results,
     }
 
-    with output_file.open(
-        "w",
-        encoding="utf-8",
-    ) as file:
-
-        json.dump(
-            report,
-            file,
-            indent=2,
-        )
+    with output_file.open("w", encoding="utf-8") as file:
+        json.dump(report, file, indent=2)
 
     print(
-        "\n================================================"
-    )
-
-    print(
-        "[SUCCESS] SCAFFOLD convergence comparison "
-        "completed successfully."
-    )
-
-    print(
-        f"Results saved to:\n{output_file}"
-    )
-
-    print(
+        "\n================================================\n"
+        "[SUCCESS] SCAFFOLD convergence comparison completed successfully.\n"
+        f"Results saved to:\n{output_file}\n"
         "================================================\n"
     )
 

@@ -16,6 +16,12 @@ from monai.losses import DiceFocalLoss
 from monai.metrics import DiceMetric, MeanIoU
 from torch.utils.data import DataLoader
 
+from fedmed.metrics.benchmark_framework import (
+    SystemMonitor,
+    compute_hausdorff_distance_95,
+    record_and_export_benchmark,
+)
+
 
 class RoundMetricCollector:
     """Structures and tracks validation metrics across federated learning rounds."""
@@ -30,6 +36,9 @@ class RoundMetricCollector:
         dice_score: float,
         iou_score: float,
         num_samples: int,
+        hd95_score: float = 0.0,
+        execution_time_seconds: float = 0.0,
+        vram_peak_mb: float = 0.0,
         region_metrics: Optional[Dict[str, float]] = None,
     ) -> Dict[str, float]:
         """Record detailed metrics for a specific FL round."""
@@ -38,7 +47,10 @@ class RoundMetricCollector:
             "val_loss": float(val_loss),
             "dice": float(dice_score),
             "iou": float(iou_score),
+            "hd95": float(hd95_score),
             "num_samples": float(num_samples),
+            "execution_time_seconds": float(execution_time_seconds),
+            "vram_peak_mb": float(vram_peak_mb),
         }
         if region_metrics:
             for k, v in region_metrics.items():
@@ -50,11 +62,12 @@ class RoundMetricCollector:
     def get_summary(self) -> Dict[str, float]:
         """Returns summary statistics across recorded rounds."""
         if not self.history:
-            return {"avg_dice": 0.0, "avg_iou": 0.0, "avg_loss": 0.0, "best_dice": 0.0}
+            return {"avg_dice": 0.0, "avg_iou": 0.0, "avg_loss": 0.0, "best_dice": 0.0, "avg_hd95": 0.0}
 
         dice_scores = [entry["dice"] for entry in self.history]
         iou_scores = [entry["iou"] for entry in self.history]
         loss_scores = [entry["val_loss"] for entry in self.history]
+        hd95_scores = [entry["hd95"] for entry in self.history if not np.isinf(entry["hd95"])]
 
         summary = {
             "avg_dice": float(sum(dice_scores) / len(dice_scores)),
@@ -62,11 +75,12 @@ class RoundMetricCollector:
             "avg_iou": float(sum(iou_scores) / len(iou_scores)),
             "best_iou": float(max(iou_scores)),
             "avg_loss": float(sum(loss_scores) / len(loss_scores)),
+            "avg_hd95": float(sum(hd95_scores) / len(hd95_scores)) if hd95_scores else 0.0,
             "total_rounds": float(len(self.history)),
         }
 
         # Include per-region averages if present
-        for region_key in ["dice_wt", "dice_tc", "dice_et", "iou_wt", "iou_tc", "iou_et"]:
+        for region_key in ["dice_wt", "dice_tc", "dice_et", "iou_wt", "iou_tc", "iou_et", "hd95_wt", "hd95_tc", "hd95_et"]:
             region_values = [entry[region_key] for entry in self.history if region_key in entry]
             if region_values:
                 summary[f"avg_{region_key}"] = float(sum(region_values) / len(region_values))
@@ -108,13 +122,21 @@ def compute_tumor_region_metrics(
     et_label = (labels > 0.85).float() if labels.max() > 0.85 else wt_label
     dice_et, iou_et = compute_binary_dice_iou(et_pred, et_label)
 
+    # Safely compute HD95 per sub-region
+    hd95_wt = compute_hausdorff_distance_95(wt_pred, wt_label)
+    hd95_tc = compute_hausdorff_distance_95(tc_pred, tc_label)
+    hd95_et = compute_hausdorff_distance_95(et_pred, et_label)
+
     return {
         "dice_wt": round(dice_wt, 6),
         "iou_wt": round(iou_wt, 6),
+        "hd95_wt": round(hd95_wt, 6) if not np.isinf(hd95_wt) else 0.0,
         "dice_tc": round(dice_tc, 6),
         "iou_tc": round(iou_tc, 6),
+        "hd95_tc": round(hd95_tc, 6) if not np.isinf(hd95_tc) else 0.0,
         "dice_et": round(dice_et, 6),
         "iou_et": round(iou_et, 6),
+        "hd95_et": round(hd95_et, 6) if not np.isinf(hd95_et) else 0.0,
     }
 
 
@@ -128,7 +150,7 @@ def evaluate_sliding_window(
     device: torch.device = torch.device("cpu"),
 ) -> Dict[str, Any]:
     """Evaluates 3D U-Net over volumetric MRI scans using sliding-window inference,
-    computing overall and per-region (WT, TC, ET) Dice and IoU metrics.
+    computing overall and per-region (WT, TC, ET) Dice, IoU, HD95 metrics, and resource usage.
     """
     model.eval()
     model.to(device)
@@ -141,53 +163,68 @@ def evaluate_sliding_window(
     iou_metric = MeanIoU(include_background=False, reduction="mean")
 
     region_accumulators = {
-        "dice_wt": 0.0, "iou_wt": 0.0,
-        "dice_tc": 0.0, "iou_tc": 0.0,
-        "dice_et": 0.0, "iou_et": 0.0,
+        "dice_wt": 0.0, "iou_wt": 0.0, "hd95_wt": 0.0,
+        "dice_tc": 0.0, "iou_tc": 0.0, "hd95_tc": 0.0,
+        "dice_et": 0.0, "iou_et": 0.0, "hd95_et": 0.0,
     }
 
     total_samples = 0
     total_batches = len(dataloader)
+    hd95_accum = 0.0
+    valid_hd95_count = 0
 
     if total_batches == 0:
         return {
-            "val_loss": 0.0, "dice": 0.0, "iou": 0.0, "num_samples": 0,
+            "val_loss": 0.0, "dice": 0.0, "iou": 0.0, "hd95": 0.0, "hausdorff_distance_95": 0.0,
+            "num_samples": 0, "execution_time_seconds": 0.0, "vram_peak_mb": 0.0,
+            "vram_current_mb": 0.0, "cuda_available": torch.cuda.is_available(),
             "dice_wt": 0.0, "iou_wt": 0.0, "dice_tc": 0.0, "iou_tc": 0.0, "dice_et": 0.0, "iou_et": 0.0,
         }
 
-    with torch.no_grad():
-        for batch in dataloader:
-            images = batch["image"].to(device)
-            labels = batch["label"].to(device)
-            total_samples += images.size(0)
+    with SystemMonitor(device=device) as monitor:
+        with torch.no_grad():
+            for batch in dataloader:
+                images = batch["image"].to(device)
+                labels = batch["label"].to(device)
+                total_samples += images.size(0)
 
-            # Sliding-window inference across 3D MRI volume
-            outputs = sliding_window_inference(
-                inputs=images,
-                roi_size=roi_size,
-                sw_batch_size=sw_batch_size,
-                predictor=model,
-                overlap=overlap,
-            )
+                # Sliding-window inference across 3D MRI volume
+                outputs = sliding_window_inference(
+                    inputs=images,
+                    roi_size=roi_size,
+                    sw_batch_size=sw_batch_size,
+                    predictor=model,
+                    overlap=overlap,
+                )
 
-            loss = loss_fn(outputs, labels)
-            running_loss += loss.item()
+                loss = loss_fn(outputs, labels)
+                running_loss += loss.item()
 
-            probs = torch.sigmoid(outputs)
-            preds = (probs > 0.5).float()
+                probs = torch.sigmoid(outputs)
+                preds = (probs > 0.5).float()
 
-            # Global MONAI metrics
-            dice_metric(y_pred=preds, y=labels)
-            iou_metric(y_pred=preds, y=labels)
+                # Global MONAI metrics
+                dice_metric(y_pred=preds, y=labels)
+                iou_metric(y_pred=preds, y=labels)
 
-            # Per-region metrics (WT, TC, ET)
-            region_res = compute_tumor_region_metrics(probs, labels)
-            for k in region_accumulators:
-                region_accumulators[k] += region_res[k]
+                # Hausdorff Distance 95 computation with fallback
+                try:
+                    batch_hd95 = compute_hausdorff_distance_95(preds, labels)
+                    if not np.isinf(batch_hd95) and not np.isnan(batch_hd95):
+                        hd95_accum += batch_hd95
+                        valid_hd95_count += 1
+                except Exception:
+                    pass
+
+                # Per-region metrics (WT, TC, ET)
+                region_res = compute_tumor_region_metrics(probs, labels)
+                for k in region_accumulators:
+                    region_accumulators[k] += region_res.get(k, 0.0)
 
     avg_loss = running_loss / total_batches
     avg_dice = float(dice_metric.aggregate().item())
     avg_iou = float(iou_metric.aggregate().item())
+    avg_hd95 = float(hd95_accum / valid_hd95_count) if valid_hd95_count > 0 else 0.0
 
     dice_metric.reset()
     iou_metric.reset()
@@ -196,7 +233,13 @@ def evaluate_sliding_window(
         "val_loss": round(avg_loss, 6),
         "dice": round(avg_dice, 6),
         "iou": round(avg_iou, 6),
+        "hd95": round(avg_hd95, 6),
+        "hausdorff_distance_95": round(avg_hd95, 6),
         "num_samples": total_samples,
+        "execution_time_seconds": round(monitor.elapsed_time, 4),
+        "vram_peak_mb": round(monitor.vram_peak_mb, 2),
+        "vram_current_mb": round(monitor.vram_current_mb, 2),
+        "cuda_available": monitor.cuda_available,
     }
 
     # Add averaged per-region metrics
@@ -286,8 +329,9 @@ def run_post_training_validation(
     collector: Optional[RoundMetricCollector] = None,
     roi_size: Tuple[int, int, int] = (64, 64, 32),
     device: torch.device = torch.device("cpu"),
+    strategy_name: str = "Centralized",
 ) -> Dict[str, Any]:
-    """Runs post-training sliding-window validation, slice extraction, and records round metrics."""
+    """Runs post-training sliding-window validation, slice extraction, and records round metrics & benchmark entry."""
     metrics = evaluate_and_extract_slices(
         model=model,
         dataloader=val_loader,
@@ -301,16 +345,29 @@ def run_post_training_validation(
             val_loss=metrics["val_loss"],
             dice_score=metrics["dice"],
             iou_score=metrics["iou"],
+            hd95_score=metrics["hd95"],
             num_samples=metrics["num_samples"],
+            execution_time_seconds=metrics["execution_time_seconds"],
+            vram_peak_mb=metrics["vram_peak_mb"],
             region_metrics={
-                "dice_wt": metrics["dice_wt"],
-                "iou_wt": metrics["iou_wt"],
-                "dice_tc": metrics["dice_tc"],
-                "iou_tc": metrics["iou_tc"],
-                "dice_et": metrics["dice_et"],
-                "iou_et": metrics["iou_et"],
+                "dice_wt": metrics.get("dice_wt", 0.0),
+                "iou_wt": metrics.get("iou_wt", 0.0),
+                "hd95_wt": metrics.get("hd95_wt", 0.0),
+                "dice_tc": metrics.get("dice_tc", 0.0),
+                "iou_tc": metrics.get("iou_tc", 0.0),
+                "hd95_tc": metrics.get("hd95_tc", 0.0),
+                "dice_et": metrics.get("dice_et", 0.0),
+                "iou_et": metrics.get("iou_et", 0.0),
+                "hd95_et": metrics.get("hd95_et", 0.0),
             },
         )
+
+    # Record into benchmark suite
+    record_and_export_benchmark(
+        strategy_name=strategy_name,
+        metrics=metrics,
+        round_or_epoch=round_num,
+    )
 
     return metrics
 
@@ -321,11 +378,12 @@ def get_federated_evaluate_fn(
     collector: Optional[RoundMetricCollector] = None,
     device: torch.device = torch.device("cpu"),
     save_outputs: bool = True,
+    strategy_name: str = "FedAvg",
 ) -> Callable:
     """Creates a server-side evaluation callback for Flower strategies.
     
     Evaluates the aggregated global 3D U-Net model after each federated round,
-    recording Dice, IoU, tumor sub-region metrics, and visualization slice previews.
+    recording Dice, IoU, HD95, tumor sub-region metrics, resource monitoring, and visualization slice previews.
     """
     def evaluate(
         server_round: int,
@@ -349,18 +407,31 @@ def get_federated_evaluate_fn(
                 val_loss=metrics["val_loss"],
                 dice_score=metrics["dice"],
                 iou_score=metrics["iou"],
+                hd95_score=metrics["hd95"],
                 num_samples=metrics["num_samples"],
+                execution_time_seconds=metrics["execution_time_seconds"],
+                vram_peak_mb=metrics["vram_peak_mb"],
                 region_metrics={
-                    "dice_wt": metrics["dice_wt"],
-                    "iou_wt": metrics["iou_wt"],
-                    "dice_tc": metrics["dice_tc"],
-                    "iou_tc": metrics["iou_tc"],
-                    "dice_et": metrics["dice_et"],
-                    "iou_et": metrics["iou_et"],
+                    "dice_wt": metrics.get("dice_wt", 0.0),
+                    "iou_wt": metrics.get("iou_wt", 0.0),
+                    "hd95_wt": metrics.get("hd95_wt", 0.0),
+                    "dice_tc": metrics.get("dice_tc", 0.0),
+                    "iou_tc": metrics.get("iou_tc", 0.0),
+                    "hd95_tc": metrics.get("hd95_tc", 0.0),
+                    "dice_et": metrics.get("dice_et", 0.0),
+                    "iou_et": metrics.get("iou_et", 0.0),
+                    "hd95_et": metrics.get("hd95_et", 0.0),
                 },
             )
 
         metrics["round"] = float(server_round)
+
+        # Record benchmark metric entry safely
+        record_and_export_benchmark(
+            strategy_name=strategy_name,
+            metrics=metrics,
+            round_or_epoch=server_round,
+        )
 
         if save_outputs:
             output_dir = Path("experiments/outputs")
@@ -392,7 +463,7 @@ def compare_centralized_vs_federated(
         try:
             with open(centralized_filepath, "r") as f:
                 c_data = json.load(f)
-                centralized_dice = float(c_data.get("val_dice", centralized_dice))
+                centralized_dice = float(c_data.get("val_dice", c_data.get("dice", centralized_dice)))
                 centralized_loss = float(c_data.get("val_loss", centralized_loss))
         except Exception:
             pass
@@ -411,37 +482,3 @@ def compare_centralized_vs_federated(
         "centralized_loss": round(centralized_loss, 6),
         "federated_loss": round(fed_loss, 6),
     }
-
-
-if __name__ == "__main__":
-    import sys
-
-    PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
-    if str(PROJECT_ROOT) not in sys.path:
-        sys.path.insert(0, str(PROJECT_ROOT))
-
-    from fedmed.core.model import get_model
-
-    # Smoke test federated evaluation function
-    class Mock3DMRIBatch(torch.utils.data.Dataset):
-        def __len__(self):
-            return 2
-        def __getitem__(self, idx):
-            return {
-                "image": torch.randn(4, 64, 64, 32),
-                "label": torch.randint(0, 2, (1, 64, 64, 32)).float(),
-            }
-
-    model = get_model()
-    val_loader = DataLoader(Mock3DMRIBatch(), batch_size=1)
-    collector = RoundMetricCollector()
-
-    eval_fn = get_federated_evaluate_fn(model, val_loader, collector=collector)
-    from fedmed.federation.server import get_parameters
-    params = get_parameters(model)
-
-    loss, metrics = eval_fn(server_round=1, parameters=params, config={})
-
-    print("[OK] Federated round evaluation output keys:", list(metrics.keys()))
-    print("[OK] Visualization payload status:", metrics.get("visualization_payload", {}).get("status"))
-    print("[OK] Collector summary:", collector.get_summary())

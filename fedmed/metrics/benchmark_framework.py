@@ -190,7 +190,6 @@ class BenchmarkResult:
 
     def __post_init__(self):
         if self.strategy_name not in SUPPORTED_STRATEGIES and not self.strategy_name.startswith("Custom"):
-            # Allow custom strategy names if needed, but validate baseline ones
             pass
 
     def to_dict(self) -> Dict[str, Any]:
@@ -251,7 +250,6 @@ class BenchmarkSuite:
         """
         comparison = []
         strategies = SUPPORTED_STRATEGIES
-        # Also include any other strategy present in results
         existing_strats = set(r.strategy_name for r in self.results)
         all_strats = list(dict.fromkeys(strategies + list(existing_strats)))
 
@@ -284,3 +282,88 @@ class BenchmarkSuite:
             json.dump(payload, f, indent=2)
 
         return str(output_path)
+
+
+GLOBAL_BENCHMARK_SUITE = BenchmarkSuite("FedMed_Automated_Benchmark")
+
+
+def _safe_float(val: Any, default: float = 0.0) -> float:
+    """Safely converts input value to float with fallback."""
+    try:
+        if val is None:
+            return default
+        f_val = float(val)
+        if np.isnan(f_val):
+            return default
+        return f_val
+    except (ValueError, TypeError):
+        return default
+
+
+def create_benchmark_result(
+    strategy_name: str,
+    metrics: Dict[str, Any],
+    round_or_epoch: int = 0,
+    additional_metadata: Optional[Dict[str, Any]] = None
+) -> BenchmarkResult:
+    """
+    Creates a BenchmarkResult object from an evaluation/training metrics dictionary.
+    Extracts Dice, HD95, IoU, runtime, and VRAM monitoring metrics safely.
+    """
+    dice_score = _safe_float(metrics.get("dice", metrics.get("val_dice", 0.0)))
+    hd95 = _safe_float(metrics.get("hd95", metrics.get("hausdorff_distance_95", 0.0)))
+    iou_score = _safe_float(metrics.get("iou", metrics.get("val_iou", 0.0)))
+    exec_time = _safe_float(metrics.get("execution_time_seconds", metrics.get("total_time_seconds", 0.0)))
+    vram_peak = _safe_float(metrics.get("vram_peak_mb", 0.0))
+    vram_curr = _safe_float(metrics.get("vram_current_mb", 0.0))
+    cuda_avail = bool(metrics.get("cuda_available", torch.cuda.is_available()))
+
+    region_metrics = {}
+    for k, v in metrics.items():
+        if (k.startswith(("dice_", "hd95_", "iou_")) or k in ["val_loss", "train_loss"]):
+            region_metrics[k] = _safe_float(v)
+
+    return BenchmarkResult(
+        strategy_name=strategy_name,
+        round_or_epoch=round_or_epoch,
+        execution_time_seconds=exec_time,
+        dice_score=dice_score,
+        hausdorff_distance_95=hd95,
+        iou_score=iou_score,
+        vram_peak_mb=vram_peak,
+        vram_current_mb=vram_curr,
+        cuda_available=cuda_avail,
+        region_metrics=region_metrics,
+        additional_metadata=additional_metadata or {}
+    )
+
+
+def record_and_export_benchmark(
+    strategy_name: str,
+    metrics: Dict[str, Any],
+    round_or_epoch: int = 0,
+    suite: Optional[BenchmarkSuite] = None,
+    output_path: Optional[Union[str, Path]] = None,
+    additional_metadata: Optional[Dict[str, Any]] = None
+) -> BenchmarkResult:
+    """
+    Utility to record an experiment result into a BenchmarkSuite and export to JSON.
+    Guaranteed not to interrupt training if file saving or metric parsing fails.
+    """
+    if suite is None:
+        suite = GLOBAL_BENCHMARK_SUITE
+
+    res = create_benchmark_result(
+        strategy_name=strategy_name,
+        metrics=metrics,
+        round_or_epoch=round_or_epoch,
+        additional_metadata=additional_metadata
+    )
+
+    try:
+        suite.record_result(res)
+        suite.export_json(output_path)
+    except Exception:
+        pass
+
+    return res
