@@ -1,6 +1,8 @@
+import numpy as np
 import pytest
 
 from fedmed.privacy.differential_privacy import (
+    DifferentialPrivacy,
     DifferentialPrivacyConfig,
     apply_dp,
 )
@@ -74,12 +76,88 @@ def test_apply_dp_when_disabled():
 
     result = apply_dp(config, gradients)
 
-    assert result == gradients
+    np.testing.assert_array_equal(result, gradients)
 
 
-def test_apply_dp_when_enabled_not_implemented():
-    gradients = [1.0, 2.0, 3.0]
-    config = DifferentialPrivacyConfig(enabled=True)
+def test_gradient_clipping():
+    config = DifferentialPrivacyConfig(
+        enabled=True,
+        max_grad_norm=1.0,
+        noise_multiplier=0.0,
+    )
 
-    with pytest.raises(NotImplementedError):
-        apply_dp(config, gradients)
+    dp = DifferentialPrivacy(config)
+
+    gradients = np.array([3.0, 4.0])
+
+    result = dp.clip_gradients(gradients)
+
+    assert np.isclose(np.linalg.norm(result), 1.0)
+
+
+def test_small_update_is_not_clipped():
+    config = DifferentialPrivacyConfig(
+        enabled=True,
+        max_grad_norm=10.0,
+        noise_multiplier=0.0,
+    )
+
+    dp = DifferentialPrivacy(config)
+
+    gradients = np.array([1.0, 2.0])
+
+    result = dp.clip_gradients(gradients)
+
+    np.testing.assert_array_equal(result, gradients)
+
+
+def test_gaussian_noise_changes_update():
+    np.random.seed(42)
+
+    config = DifferentialPrivacyConfig(
+        enabled=True,
+        max_grad_norm=10.0,
+        noise_multiplier=1.0,
+    )
+
+    dp = DifferentialPrivacy(config)
+
+    gradients = np.array([1.0, 2.0, 3.0])
+
+    result = dp.add_gaussian_noise(gradients)
+
+    assert not np.array_equal(result, gradients)
+
+
+def test_dp_enabled_changes_update():
+    np.random.seed(42)
+
+    config = DifferentialPrivacyConfig(
+        enabled=True,
+        max_grad_norm=1.0,
+        noise_multiplier=0.1,
+    )
+
+    dp = DifferentialPrivacy(config)
+
+    gradients = np.array([3.0, 4.0])
+
+    result = dp.apply(gradients)
+
+    assert not np.array_equal(result, gradients)
+
+
+def test_apply_dp_when_enabled():
+    np.random.seed(42)
+
+    gradients = np.array([3.0, 4.0])
+
+    config = DifferentialPrivacyConfig(
+        enabled=True,
+        max_grad_norm=1.0,
+        noise_multiplier=0.1,
+    )
+
+    result = apply_dp(config, gradients)
+
+    assert not np.array_equal(result, gradients)
