@@ -1,0 +1,12 @@
+strategy: fedavg
+
+num_rounds: 3
+local_epochs: 1
+learning_rate: 0.0001
+batch_size: 1
+
+dataset:
+  name: brats
+  partition: non_iid
+  dirichlet_alpha: 0.5
+  seed: 42
