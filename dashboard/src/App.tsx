@@ -4,7 +4,8 @@ import { Sidebar } from "./components/Sidebar";
 import { Header } from "./components/Header";
 import { HospitalNodeCard } from "./components/HospitalNodeCard";
 import { MetricsChart } from "./components/MetricsChart";
-
+import SegmentationViewer from "./components/SegmentationViewer";
+import type { SegmentationSlice } from "./types/segmentation";
 import type { FederationMetricPoint } from "./types/metrics";
 import { useHospitalStore } from "./store/hospitalStore";
 import { TelemetryClient } from "./api/telemetry";
@@ -74,7 +75,26 @@ const MOCK_METRICS: FederationMetricPoint[] = [
     roundDuration: 16.5,
   },
 ];
-
+const MOCK_SEGMENTATION_SLICES: SegmentationSlice[] = [
+  {
+    sliceIndex: 0,
+    mriSlice: "/mock/mri-0.png",
+    groundTruthMask: "/mock/ground-truth-0.png",
+    predictedMask: "/mock/predicted-0.png",
+  },
+  {
+    sliceIndex: 1,
+    mriSlice: "/mock/mri-1.png",
+    groundTruthMask: "/mock/ground-truth-1.png",
+    predictedMask: "/mock/predicted-1.png",
+  },
+  {
+    sliceIndex: 2,
+    mriSlice: "/mock/mri-2.png",
+    groundTruthMask: "/mock/ground-truth-2.png",
+    predictedMask: "",
+  },
+];
 export const App: React.FC = () => {
   const hospitals = useHospitalStore((state) => state.hospitals);
   const fetchHospitals = useHospitalStore(
@@ -505,6 +525,10 @@ export const App: React.FC = () => {
 
           {/* LIVE METRICS CHART */}
           <MetricsChart data={metrics} />
+          {/* 2D SEGMENTATION VIEWER */}
+          <SegmentationViewer
+              slices={MOCK_SEGMENTATION_SLICES}
+          />
 
           {/* EXPERIMENT TELEMETRY SUMMARY */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
