@@ -21,6 +21,18 @@ services:
       - "9203:9093"
     networks:
       - fedmed-network
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import socket; socket.create_connection(('127.0.0.1', 9092), 2).close()"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
   # ---------------------------------------------------------------------------
   # Hospital A
@@ -29,6 +41,16 @@ services:
     image: fedmed_dsml_intern_grp20-hospital-a:latest
     environment:
       HOSPITAL_ID: hospital_a
+      SUPERLINK_HOST: federation-server
+      SUPERLINK_PORT: "9092"
+    command: >
+      sh -c "
+      python -m fedmed.nodes.node_manager &
+      exec flower-supernode
+      --insecure
+      --grpc-rere
+      --superlink $${SUPERLINK_HOST}:$${SUPERLINK_PORT}
+      "
     ports:
       - "8081:8080"
       - "9091:9091"
@@ -38,6 +60,9 @@ services:
       - ./data:/app/data:ro
     networks:
       - fedmed-network
+    depends_on:
+      federation-server:
+        condition: service_healthy
 
   # ---------------------------------------------------------------------------
   # Hospital B
@@ -46,6 +71,16 @@ services:
     image: fedmed_dsml_intern_grp20-hospital-a:latest
     environment:
       HOSPITAL_ID: hospital_b
+      SUPERLINK_HOST: federation-server
+      SUPERLINK_PORT: "9092"
+    command: >
+      sh -c "
+      python -m fedmed.nodes.node_manager &
+      exec flower-supernode
+      --insecure
+      --grpc-rere
+      --superlink $${SUPERLINK_HOST}:$${SUPERLINK_PORT}
+      "
     ports:
       - "8082:8080"
       - "9092:9092"
@@ -55,6 +90,9 @@ services:
       - ./data:/app/data:ro
     networks:
       - fedmed-network
+    depends_on:
+      federation-server:
+        condition: service_healthy
 
   # ---------------------------------------------------------------------------
   # Hospital C
@@ -63,6 +101,16 @@ services:
     image: fedmed_dsml_intern_grp20-hospital-a:latest
     environment:
       HOSPITAL_ID: hospital_c
+      SUPERLINK_HOST: federation-server
+      SUPERLINK_PORT: "9092"
+    command: >
+      sh -c "
+      python -m fedmed.nodes.node_manager &
+      exec flower-supernode
+      --insecure
+      --grpc-rere
+      --superlink $${SUPERLINK_HOST}:$${SUPERLINK_PORT}
+      "
     ports:
       - "8083:8080"
       - "9093:9093"
@@ -72,6 +120,9 @@ services:
       - ./data:/app/data:ro
     networks:
       - fedmed-network
+    depends_on:
+      federation-server:
+        condition: service_healthy
 
   # ---------------------------------------------------------------------------
   # FastAPI backend
