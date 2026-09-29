@@ -616,8 +616,16 @@ class SCAFFOLDStrategy(FedAvg):
 def create_scaffold_strategy(
     initial_parameters: Optional[Parameters] = None,
     evaluate_fn: Optional[Callable] = None,
+    local_epochs: int = 1,
+    learning_rate: float = 1e-4,
 ) -> SCAFFOLDStrategy:
-    """Create the SCAFFOLD strategy."""
+    """Create the SCAFFOLD strategy with configurable training parameters."""
+
+    if local_epochs <= 0:
+        raise ValueError("local_epochs must be greater than 0.")
+
+    if learning_rate <= 0:
+        raise ValueError("learning_rate must be greater than 0.")
 
     model = get_model(
         in_channels=4,
@@ -634,8 +642,8 @@ def create_scaffold_strategy(
         min_fit_clients=3,
         min_evaluate_clients=3,
         min_available_clients=3,
-        local_epochs=1,
-        learning_rate=1e-4,
+        local_epochs=local_epochs,
+        learning_rate=learning_rate,
         server_learning_rate=1.0,
         client_learning_rate=1.0,
     )
@@ -699,10 +707,18 @@ def create_server_strategy(
     min_fit_clients: int = 3,
     min_available_clients: int = 3,
     evaluate_fn: Optional[Callable] = None,
+    local_epochs: int = 1,
+    learning_rate: float = 1e-4,
 ):
     """Create FedAvg, encrypted FedAvg, FedProx, or SCAFFOLD strategy."""
 
-    strategy_name = strategy_name.lower()
+    strategy_name = strategy_name.strip().lower()
+
+    if local_epochs <= 0:
+        raise ValueError("local_epochs must be greater than 0.")
+
+    if learning_rate <= 0:
+        raise ValueError("learning_rate must be greater than 0.")
 
     if strategy_name == "fedavg":
         return FedAvg(
@@ -745,6 +761,8 @@ def create_server_strategy(
         return create_scaffold_strategy(
             initial_parameters=initial_parameters,
             evaluate_fn=evaluate_fn,
+            local_epochs=local_epochs,
+            learning_rate=learning_rate,
         )
 
     raise ValueError(
