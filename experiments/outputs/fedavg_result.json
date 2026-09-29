@@ -1,0 +1,90 @@
+{
+  "distribution": "Non-IID",
+  "strategy": "FedAvg",
+  "settings": {
+    "num_clients": 3,
+    "num_rounds": 3,
+    "local_epochs": 1,
+    "learning_rate": 0.0001,
+    "batch_size": 1,
+    "proximal_mu": null,
+    "partition": "non_iid",
+    "dirichlet_alpha": 0.5,
+    "seed": 42
+  },
+  "history": [
+    {
+      "round": 1,
+      "train_loss": 1.101687918106715,
+      "global_loss": 0.9560504605372747,
+      "val_loss": 0.9560504605372747,
+      "val_dice": 0.09731642963985603,
+      "parameter_delta": 0.0,
+      "participants": 3,
+      "failures": 0,
+      "scaffold": false,
+      "scaffold_clients": 0,
+      "scaffold_round": 0
+    },
+    {
+      "round": 2,
+      "train_loss": 1.0283599098523457,
+      "global_loss": 0.952984963854154,
+      "val_loss": 0.952984963854154,
+      "val_dice": 0.09433207660913467,
+      "parameter_delta": 7.379410491342601,
+      "participants": 3,
+      "failures": 0,
+      "scaffold": false,
+      "scaffold_clients": 0,
+      "scaffold_round": 0
+    },
+    {
+      "round": 3,
+      "train_loss": 0.9580716540416082,
+      "global_loss": 0.9499238083759943,
+      "val_loss": 0.9499238083759943,
+      "val_dice": 0.11938474886119366,
+      "parameter_delta": 4.693788606977244,
+      "participants": 3,
+      "failures": 0,
+      "scaffold": false,
+      "scaffold_clients": 0,
+      "scaffold_round": 0
+    }
+  ],
+  "config": {
+    "strategy": "fedavg",
+    "num_rounds": 3,
+    "local_epochs": 1,
+    "learning_rate": 0.0001,
+    "batch_size": 1,
+    "proximal_mu": null,
+    "dataset": {
+      "name": "brats",
+      "partition": "non_iid",
+      "dirichlet_alpha": 0.5,
+      "seed": 42
+    }
+  },
+  "partitions": {
+    "client_1": [
+      "volume_07",
+      "volume_01",
+      "volume_02",
+      "volume_11",
+      "volume_03"
+    ],
+    "client_2": [
+      "volume_06",
+      "volume_08",
+      "volume_04"
+    ],
+    "client_3": [
+      "volume_05",
+      "volume_10",
+      "volume_00",
+      "volume_09"
+    ]
+  }
+}
