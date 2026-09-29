@@ -1,13 +1,20 @@
 """TenSEAL utilities and homomorphic-encryption engine for FedMed."""
 
 from typing import List, Optional, Tuple
-
-import tenseal as ts
 import torch
+
+try:
+    import tenseal as ts
+    TENSEAL_AVAILABLE = True
+except ImportError:
+    ts = None
+    TENSEAL_AVAILABLE = False
 
 
 def check_tenseal() -> bool:
     """Verify that TenSEAL can create a CKKS context."""
+    if not TENSEAL_AVAILABLE:
+        return False
     try:
         context = ts.context(
             ts.SCHEME_TYPE.CKKS,
@@ -29,12 +36,14 @@ class TenSEALEngine:
         coeff_mod_bit_sizes: Optional[list] = None,
         global_scale: float = 2**40,
     ):
+        if not TENSEAL_AVAILABLE:
+            raise RuntimeError("TenSEAL library is not installed.")
         self.poly_modulus_degree = poly_modulus_degree
         self.coeff_mod_bit_sizes = coeff_mod_bit_sizes or [60, 40, 40, 60]
         self.global_scale = global_scale
         self.context = self._create_ckks_context()
 
-    def _create_ckks_context(self) -> ts.Context:
+    def _create_ckks_context(self):
         """Validate parameters and build a TenSEAL CKKS context."""
         if self.poly_modulus_degree not in [4096, 8192, 16384]:
             raise ValueError(
@@ -61,6 +70,7 @@ class TenSEALEngine:
         """Encrypt a PyTorch float tensor using the local secret context."""
         flat_data = tensor.detach().cpu().numpy().flatten().tolist()
         return ts.ckks_vector(self.context, flat_data)
+
     def flatten_tensor(
         self, tensor: torch.Tensor
     ) -> Tuple[List[float], torch.Size]:
@@ -71,9 +81,10 @@ class TenSEALEngine:
 
     def encrypt_flat_tensor(
         self, flat_data: List[float]
-    ) -> ts.CKKSVector:
+    ):
         """Encrypts flattened float values using the local secret context."""
         return ts.ckks_vector(self.context, flat_data)
+
     def select_parameters(
         self,
         state_dict: dict,
@@ -119,7 +130,7 @@ class TenSEALEngine:
         return prepared
 
     def serialize_ciphertext(
-        self, enc_vector: ts.CKKSVector
+        self, enc_vector
     ) -> bytes:
         """Converts an encrypted CKKS vector into byte payload."""
         return enc_vector.serialize()
@@ -127,15 +138,15 @@ class TenSEALEngine:
     def deserialize_ciphertext(
         self,
         enc_bytes: bytes,
-        context: Optional[ts.Context] = None,
-    ) -> ts.CKKSVector:
+        context=None,
+    ):
         """Reconstructs CKKSVector from received byte payload."""
         ctx = context or self.context
         return ts.ckks_vector_from(ctx, enc_bytes)
 
     def decrypt_vector(
         self,
-        enc_vector: ts.CKKSVector,
+        enc_vector,
         original_shape: Optional[torch.Size] = None,
     ) -> torch.Tensor:
         """Decrypts CKKS vector and reshapes it to the original shape."""

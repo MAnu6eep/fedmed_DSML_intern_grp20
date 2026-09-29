@@ -15,7 +15,11 @@ from monai.losses import DiceFocalLoss
 from monai.metrics import DiceMetric
 from torch.utils.data import DataLoader
 
-from fedmed.metrics.benchmark_framework import SystemMonitor, compute_hausdorff_distance_95
+from fedmed.metrics.benchmark_framework import (
+    SystemMonitor,
+    compute_hausdorff_distance_95,
+    record_and_export_benchmark,
+)
 
 
 def train_one_epoch(
@@ -216,8 +220,10 @@ def run_local_training(
     proximal_mu: float = 0.0,
     scaffold_server_control: List[np.ndarray] | None = None,
     scaffold_client_control: List[np.ndarray] | None = None,
+    strategy_name: str = "Centralized",
+    record_benchmark: bool = True,
 ) -> Dict[str, float]:
-    """Run local hospital training with integrated runtime timing and VRAM monitoring.
+    """Run local hospital training with integrated runtime timing, VRAM monitoring, and benchmark export.
 
     FedAvg:
         Normal local training.
@@ -266,7 +272,7 @@ def run_local_training(
             device,
         )
 
-    return {
+    results = {
         "train_loss": round(train_loss, 6),
         "val_loss": round(val_loss, 6),
         "val_dice": round(val_dice, 6),
@@ -276,3 +282,12 @@ def run_local_training(
         "vram_current_mb": round(monitor.vram_current_mb, 2),
         "cuda_available": monitor.cuda_available,
     }
+
+    if record_benchmark:
+        record_and_export_benchmark(
+            strategy_name=strategy_name,
+            metrics=results,
+            round_or_epoch=epochs,
+        )
+
+    return results
