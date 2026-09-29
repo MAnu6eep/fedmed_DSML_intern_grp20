@@ -75,32 +75,34 @@ const MOCK_METRICS: FederationMetricPoint[] = [
     roundDuration: 16.5,
   },
 ];
-const MOCK_SEGMENTATION_SLICES: SegmentationSlice[] = [
-  {
-    sliceIndex: 0,
-    mriSlice: "/mock/mri-0.png",
-    groundTruthMask: "/mock/ground-truth-0.png",
-    predictedMask: "/mock/predicted-0.png",
-  },
-  {
-    sliceIndex: 1,
-    mriSlice: "/mock/mri-1.png",
-    groundTruthMask: "/mock/ground-truth-1.png",
-    predictedMask: "/mock/predicted-1.png",
-  },
-  {
-    sliceIndex: 2,
-    mriSlice: "/mock/mri-2.png",
-    groundTruthMask: "/mock/ground-truth-2.png",
-    predictedMask: "",
-  },
-];
+const [segmentationSlices, setSegmentationSlices] =
+  useState<SegmentationSlice[]>([]);
+
+const [segmentationLoading, setSegmentationLoading] =
+  useState(true);
+
+const [segmentationError, setSegmentationError] =
+  useState<string | null>(null);
 export const App: React.FC = () => {
   const hospitals = useHospitalStore((state) => state.hospitals);
   const fetchHospitals = useHospitalStore(
     (state) => state.fetchHospitals
   );
-
+  {segmentationLoading ? (
+    <div className="bg-slate-900 rounded-xl p-6">
+      <p className="text-slate-400">
+        Loading MRI segmentation...
+      </p>
+    </div>
+  ) : segmentationError ? (
+    <div className="bg-slate-900 rounded-xl p-6">
+      <p className="text-red-400">
+        {segmentationError}
+      </p>
+    </div>
+  ) : (
+    <SegmentationViewer slices={segmentationSlices} />
+  )}
   const updateHospitalStatus = useHospitalStore(
     (state) => state.updateHospitalStatus
   );
@@ -192,6 +194,44 @@ export const App: React.FC = () => {
   /**
    * WebSocket telemetry connection.
    */
+  useEffect(() => {
+    const fetchSegmentation = async () => {
+      try {
+        setSegmentationLoading(true);
+  
+        const response = await fetch(
+          "http://127.0.0.1:8000/api/segmentation"
+        );
+  
+        if (!response.ok) {
+          throw new Error("Failed to fetch segmentation data");
+        }
+  
+        const data = await response.json();
+  
+        const slices: SegmentationSlice[] = data.slices.map(
+          (slice: any) => ({
+            sliceIndex: slice.index,
+            mriSlice: slice.mri,
+            groundTruthMask: slice.ground_truth ?? "",
+            predictedMask: slice.prediction ?? "",
+          })
+        );
+  
+        setSegmentationSlices(slices);
+      } catch (error) {
+        setSegmentationError(
+          error instanceof Error
+            ? error.message
+            : "Failed to load segmentation"
+        );
+      } finally {
+        setSegmentationLoading(false);
+      }
+    };
+  
+    fetchSegmentation();
+  }, []);
   useEffect(() => {
     const telemetryClient = new TelemetryClient();
 
@@ -526,9 +566,7 @@ export const App: React.FC = () => {
           {/* LIVE METRICS CHART */}
           <MetricsChart data={metrics} />
           {/* 2D SEGMENTATION VIEWER */}
-          <SegmentationViewer
-              slices={MOCK_SEGMENTATION_SLICES}
-          />
+        
 
           {/* EXPERIMENT TELEMETRY SUMMARY */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
