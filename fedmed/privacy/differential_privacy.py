@@ -1,6 +1,8 @@
-"""Differential privacy scaffolding for FedMed."""
+"""Differential privacy utilities for FedMed."""
 
 from dataclasses import dataclass
+
+import numpy as np
 
 
 @dataclass
@@ -29,16 +31,65 @@ class DifferentialPrivacyConfig:
             raise ValueError("delta must be between 0 and 1.")
 
 
-def apply_dp(config: DifferentialPrivacyConfig, gradients):
-    """Apply differential privacy to gradients.
+class DifferentialPrivacy:
+    """Apply gradient clipping and Gaussian noise."""
 
-    This is a placeholder interface for future DP integration.
-    Actual gradient clipping, Gaussian noise addition, and privacy
-    accounting will be implemented when DP is integrated into training.
-    """
-    if not config.enabled:
-        return gradients
+    def __init__(self, config: DifferentialPrivacyConfig):
+        self.config = config
+        self.config.validate()
 
-    raise NotImplementedError(
-        "Differential privacy training integration is not implemented yet."
-    )
+    def clip_gradients(self, gradients: np.ndarray) -> np.ndarray:
+        """Clip gradients to the configured maximum L2 norm."""
+
+        gradients = np.asarray(gradients, dtype=np.float64)
+
+        norm = np.linalg.norm(gradients)
+
+        if norm == 0:
+            return gradients.copy()
+
+        if norm <= self.config.max_grad_norm:
+            return gradients.copy()
+
+        scale = self.config.max_grad_norm / norm
+
+        return gradients * scale
+
+    def add_gaussian_noise(self, gradients: np.ndarray) -> np.ndarray:
+        """Add Gaussian noise to gradients."""
+
+        gradients = np.asarray(gradients, dtype=np.float64)
+
+        if self.config.noise_multiplier == 0:
+            return gradients.copy()
+
+        noise = np.random.normal(
+            loc=0.0,
+            scale=self.config.noise_multiplier,
+            size=gradients.shape,
+        )
+
+        return gradients + noise
+
+    def apply(self, gradients: np.ndarray) -> np.ndarray:
+        """Apply differential privacy to gradients."""
+
+        gradients = np.asarray(gradients, dtype=np.float64)
+
+        if not self.config.enabled:
+            return gradients.copy()
+
+        clipped_gradients = self.clip_gradients(gradients)
+
+        return self.add_gaussian_noise(clipped_gradients)
+
+
+def apply_dp(
+    config: DifferentialPrivacyConfig,
+    gradients: np.ndarray,
+) -> np.ndarray:
+    """Apply configured differential privacy to gradients."""
+
+    dp = DifferentialPrivacy(config)
+
+    return dp.apply(gradients)
