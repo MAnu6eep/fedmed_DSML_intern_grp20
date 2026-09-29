@@ -15,6 +15,8 @@ from monai.losses import DiceFocalLoss
 from monai.metrics import DiceMetric
 from torch.utils.data import DataLoader
 
+from fedmed.metrics.benchmark_framework import SystemMonitor, compute_hausdorff_distance_95
+
 
 def train_one_epoch(
     model: nn.Module,
@@ -82,13 +84,6 @@ def train_one_epoch(
 
         # --------------------------------------------------------------
         # SCAFFOLD
-        #
-        # Corrected gradient:
-        #
-        #     g_corrected = g - c_i + c
-        #
-        # We first compute the normal gradient and then apply the
-        # control-variate correction before optimizer.step().
         # --------------------------------------------------------------
 
         loss.backward()
@@ -151,8 +146,8 @@ def evaluate_local(
     dataloader: DataLoader,
     loss_fn: nn.Module,
     device: torch.device,
-) -> Tuple[float, float]:
-
+) -> Tuple[float, float, float]:
+    """Evaluates local validation set and computes loss, Dice, and HD95 metrics."""
     model.eval()
 
     running_loss = 0.0
@@ -163,9 +158,11 @@ def evaluate_local(
     )
 
     total_batches = len(dataloader)
+    hd95_accum = 0.0
+    valid_hd95_count = 0
 
     if total_batches == 0:
-        return 0.0, 0.0
+        return 0.0, 0.0, 0.0
 
     with torch.no_grad():
         for batch in dataloader:
@@ -191,17 +188,21 @@ def evaluate_local(
                 y=labels,
             )
 
-    avg_loss = (
-        running_loss / total_batches
-    )
+            try:
+                hd95_val = compute_hausdorff_distance_95(preds, labels)
+                if not np.isinf(hd95_val) and not np.isnan(hd95_val):
+                    hd95_accum += hd95_val
+                    valid_hd95_count += 1
+            except Exception:
+                pass
 
-    avg_dice = float(
-        dice_metric.aggregate().item()
-    )
+    avg_loss = running_loss / total_batches
+    avg_dice = float(dice_metric.aggregate().item())
+    avg_hd95 = float(hd95_accum / valid_hd95_count) if valid_hd95_count > 0 else 0.0
 
     dice_metric.reset()
 
-    return avg_loss, avg_dice
+    return avg_loss, avg_dice, avg_hd95
 
 
 def run_local_training(
@@ -216,7 +217,7 @@ def run_local_training(
     scaffold_server_control: List[np.ndarray] | None = None,
     scaffold_client_control: List[np.ndarray] | None = None,
 ) -> Dict[str, float]:
-    """Run local hospital training.
+    """Run local hospital training with integrated runtime timing and VRAM monitoring.
 
     FedAvg:
         Normal local training.
@@ -244,32 +245,34 @@ def run_local_training(
 
     train_loss = 0.0
 
-    for _ in range(epochs):
-        train_loss = train_one_epoch(
-            model=model,
-            dataloader=train_loader,
-            optimizer=optimizer,
-            loss_fn=loss_fn,
-            device=device,
-            global_parameters=global_parameters,
-            proximal_mu=proximal_mu,
-            scaffold_server_control=(
-                scaffold_server_control
-            ),
-            scaffold_client_control=(
-                scaffold_client_control
-            ),
+    with SystemMonitor(device=device) as monitor:
+        for _ in range(epochs):
+            train_loss = train_one_epoch(
+                model=model,
+                dataloader=train_loader,
+                optimizer=optimizer,
+                loss_fn=loss_fn,
+                device=device,
+                global_parameters=global_parameters,
+                proximal_mu=proximal_mu,
+                scaffold_server_control=scaffold_server_control,
+                scaffold_client_control=scaffold_client_control,
+            )
+
+        val_loss, val_dice, val_hd95 = evaluate_local(
+            model,
+            val_loader,
+            loss_fn,
+            device,
         )
 
-    val_loss, val_dice = evaluate_local(
-        model,
-        val_loader,
-        loss_fn,
-        device,
-    )
-
     return {
-        "train_loss": train_loss,
-        "val_loss": val_loss,
-        "val_dice": val_dice,
+        "train_loss": round(train_loss, 6),
+        "val_loss": round(val_loss, 6),
+        "val_dice": round(val_dice, 6),
+        "val_hd95": round(val_hd95, 6),
+        "execution_time_seconds": round(monitor.elapsed_time, 4),
+        "vram_peak_mb": round(monitor.vram_peak_mb, 2),
+        "vram_current_mb": round(monitor.vram_current_mb, 2),
+        "cuda_available": monitor.cuda_available,
     }

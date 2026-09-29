@@ -20,6 +20,7 @@ from fedmed.core.evaluation import evaluate_and_extract_slices
 from fedmed.core.model import get_model
 from fedmed.core.training import run_local_training
 from fedmed.data.loader import create_brats_dataloader
+from fedmed.metrics.benchmark_framework import record_and_export_benchmark
 from scripts.setup_data import generate_mock_brats_data
 
 # Configure artifact output paths
@@ -133,7 +134,15 @@ def main():
         device=device,
     )
 
-    # 6. Save Experiment Artifacts
+    # 6. Record Benchmark Metrics
+    combined_metrics = {**metrics, **val_eval_results, "total_time_seconds": total_time}
+    record_and_export_benchmark(
+        strategy_name="Centralized",
+        metrics=combined_metrics,
+        round_or_epoch=epochs,
+    )
+
+    # 7. Save Experiment Artifacts
     logger.info("Saving experiment artifacts...")
 
     # Save PyTorch Model Checkpoint
@@ -157,6 +166,7 @@ def main():
         "train_loss": round(metrics["train_loss"], 6),
         "val_loss": round(metrics["val_loss"], 6),
         "val_dice": round(metrics["val_dice"], 6),
+        "val_hd95": round(metrics.get("val_hd95", val_eval_results.get("hd95", 0.0)), 6),
         "device": str(device),
         "dataset_samples": len(data_dicts),
         "evaluation_results": val_eval_results,
