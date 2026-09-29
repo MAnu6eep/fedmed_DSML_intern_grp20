@@ -157,7 +157,35 @@ def get_metrics():
         "active_strategy": "FedAvg",
     }
 
+class SegmentationSlice(BaseModel):
+    index: int
+    mri: str
+    ground_truth: str
+    prediction: str
 
+
+class SegmentationResponse(BaseModel):
+    slices: list[SegmentationSlice]
+
+
+@app.get("/api/segmentation", response_model=SegmentationResponse)
+def get_segmentation():
+    return {
+        "slices": [
+            {
+                "index": 0,
+                "mri": "/segmentation/mri-0.png",
+                "ground_truth": "/segmentation/ground-truth-0.png",
+                "prediction": "/segmentation/predicted-0.png",
+            },
+            {
+                "index": 1,
+                "mri": "/segmentation/mri-1.png",
+                "ground_truth": "/segmentation/ground-truth-1.png",
+                "prediction": "/segmentation/predicted-1.png",
+            },
+        ]
+    }
 @app.get("/")
 def root():
     return {
