@@ -1,0 +1,7 @@
+{
+  "dp_enabled": true,
+  "noise_multiplier": 0.5,
+  "max_grad_norm": 1.0,
+  "epsilon": 8.0,
+  "delta": 1e-05
+}
