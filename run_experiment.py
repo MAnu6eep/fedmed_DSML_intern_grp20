@@ -39,6 +39,10 @@ from fedmed.config.experiment import (
 
 from fedmed.data.partitioner import partition_dirichlet
 
+from fedmed.privacy.differential_privacy import (
+    DifferentialPrivacyConfig,
+)
+
 from experiments.scaffold_convergence_comparison import (
     NUM_CLIENTS,
     run_experiment,
@@ -55,8 +59,9 @@ SUPPORTED_CONFIG_KEYS = {
     "local_epochs",
     "learning_rate",
     "batch_size",
-    "proximal_mu",
     "dataset",
+    "proximal_mu",
+    "dp",
 }
 
 SUPPORTED_DATASET_KEYS = {
@@ -64,6 +69,14 @@ SUPPORTED_DATASET_KEYS = {
     "partition",
     "dirichlet_alpha",
     "seed",
+}
+
+SUPPORTED_DP_KEYS = {
+    "enabled",
+    "max_grad_norm",
+    "noise_multiplier",
+    "epsilon",
+    "delta",
 }
 
 
@@ -171,14 +184,50 @@ def build_experiment_config(
         **dataset_data
     )
 
+    # --------------------------------------------------------------
+    # Differential Privacy configuration
+    # --------------------------------------------------------------
+
+    dp_data = raw_config.get("dp", {})
+
+    if dp_data is None:
+        dp_data = {}
+
+    if not isinstance(dp_data, dict):
+        raise ValueError(
+            "'dp' must be a mapping."
+        )
+
+    unknown_dp_keys = (
+        set(dp_data) - SUPPORTED_DP_KEYS
+    )
+
+    if unknown_dp_keys:
+        raise ValueError(
+            "Unsupported DP field(s): "
+            + ", ".join(sorted(unknown_dp_keys))
+        )
+
+    dp_config = DifferentialPrivacyConfig(
+        **dp_data
+    )
+
+    # --------------------------------------------------------------
+    # Experiment configuration
+    # --------------------------------------------------------------
+
     experiment_fields = {
         key: value
         for key, value in raw_config.items()
-        if key != "dataset"
+        if key not in {
+            "dataset",
+            "dp",
+        }
     }
 
     return ExperimentConfig(
         dataset=dataset,
+        dp=dp_config,
         **experiment_fields,
     )
 
@@ -291,6 +340,13 @@ def run_from_config(
             ),
             "seed": config.dataset.seed,
         },
+        "dp": {
+            "enabled": config.dp.enabled,
+            "max_grad_norm": config.dp.max_grad_norm,
+            "noise_multiplier": config.dp.noise_multiplier,
+            "epsilon": config.dp.epsilon,
+            "delta": config.dp.delta,
+        },
     }
 
     # Store the exact partition used so the experiment
@@ -401,6 +457,26 @@ def main() -> int:
                 f"Mu       : {config.proximal_mu}"
             )
 
+        print(
+            f"DP       : {config.dp.enabled}"
+        )
+
+        print(
+            f"DP norm  : {config.dp.max_grad_norm}"
+        )
+
+        print(
+            f"DP noise : {config.dp.noise_multiplier}"
+        )
+
+        print(
+            f"Epsilon  : {config.dp.epsilon}"
+        )
+
+        print(
+            f"Delta    : {config.dp.delta}"
+        )
+
         print("=" * 60)
 
         result = run_from_config(
@@ -419,6 +495,10 @@ def main() -> int:
 
         print(
             f"Strategy : {config.strategy}"
+        )
+
+        print(
+            f"DP       : {config.dp.enabled}"
         )
 
         print(
