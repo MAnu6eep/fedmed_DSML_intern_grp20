@@ -206,3 +206,52 @@ def test_different_seed_changes_partition():
     second = create_partitions(config_two)
 
     assert first != second
+
+
+# ---------------------------------------------------------------------------
+# Standardized benchmark configurations
+# ---------------------------------------------------------------------------
+
+BENCHMARK_CONFIGS = {
+    "centralized.yaml": {
+        "strategy": "centralized",
+        "proximal_mu": None,
+    },
+    "fedavg.yaml": {
+        "strategy": "fedavg",
+        "proximal_mu": None,
+    },
+    "fedprox.yaml": {
+        "strategy": "fedprox",
+        "proximal_mu": 0.01,
+    },
+    "scaffold.yaml": {
+        "strategy": "scaffold",
+        "proximal_mu": None,
+    },
+}
+
+@pytest.mark.parametrize(
+    "config_name, expected",
+    BENCHMARK_CONFIGS.items(),
+)
+def test_standardized_benchmark_config(config_name, expected):
+    """Verify every benchmark YAML maps to the expected experiment config."""
+    config_path = Path("experiments") / config_name
+
+    raw_config = load_yaml_config(config_path)
+    config = build_experiment_config(raw_config)
+
+    assert config.strategy == expected["strategy"]
+    assert config.num_rounds == 3
+    assert config.local_epochs == 1
+    assert config.learning_rate == 0.0001
+    assert config.batch_size == 1
+
+    assert config.dataset.name == "brats"
+    assert config.dataset.partition == "non_iid"
+    assert config.dataset.dirichlet_alpha == 0.5
+    assert config.dataset.seed == 42
+
+    if expected["strategy"] == "fedprox":
+        assert config.proximal_mu == expected["proximal_mu"]
