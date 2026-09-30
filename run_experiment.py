@@ -1,8 +1,8 @@
-"""
-FedMed common experiment runner.
+"""Common experiment runner.
 
-Run any configured experiment with:
+Launch a configured centralized or federated experiment from YAML.
 
+Example:
     python run_experiment.py --config experiments/fedavg.yaml
 """
 
@@ -16,7 +16,6 @@ from typing import Any, Dict
 import numpy as np
 import torch
 import yaml
-
 
 # ---------------------------------------------------------------------------
 # Project path
@@ -39,10 +38,6 @@ from fedmed.config.experiment import (
 
 from fedmed.data.partitioner import partition_dirichlet
 
-from fedmed.privacy.differential_privacy import (
-    DifferentialPrivacyConfig,
-)
-
 from experiments.scaffold_convergence_comparison import (
     NUM_CLIENTS,
     run_experiment,
@@ -59,9 +54,8 @@ SUPPORTED_CONFIG_KEYS = {
     "local_epochs",
     "learning_rate",
     "batch_size",
-    "dataset",
     "proximal_mu",
-    "dp",
+    "dataset",
 }
 
 SUPPORTED_DATASET_KEYS = {
@@ -71,20 +65,14 @@ SUPPORTED_DATASET_KEYS = {
     "seed",
 }
 
-SUPPORTED_DP_KEYS = {
-    "enabled",
-    "max_grad_norm",
-    "noise_multiplier",
-    "epsilon",
-    "delta",
-}
-
 
 # ---------------------------------------------------------------------------
 # Argument parsing
 # ---------------------------------------------------------------------------
 
 def parse_args() -> argparse.Namespace:
+    """Parse command-line arguments."""
+
     parser = argparse.ArgumentParser(
         description="Run a configured FedMed experiment."
     )
@@ -104,7 +92,7 @@ def parse_args() -> argparse.Namespace:
 # ---------------------------------------------------------------------------
 
 def load_yaml_config(path: Path) -> Dict[str, Any]:
-    """Load and validate the YAML configuration file."""
+    """Load and validate the YAML configuration."""
 
     if not path.exists():
         raise FileNotFoundError(
@@ -158,9 +146,12 @@ def load_yaml_config(path: Path) -> Dict[str, Any]:
 def build_experiment_config(
     raw_config: Dict[str, Any],
 ) -> ExperimentConfig:
-    """Convert YAML data into ExperimentConfig."""
+    """Convert YAML data into a validated ExperimentConfig."""
 
-    dataset_data = raw_config.get("dataset", {})
+    dataset_data = raw_config.get(
+        "dataset",
+        {},
+    )
 
     if dataset_data is None:
         dataset_data = {}
@@ -184,50 +175,14 @@ def build_experiment_config(
         **dataset_data
     )
 
-    # --------------------------------------------------------------
-    # Differential Privacy configuration
-    # --------------------------------------------------------------
-
-    dp_data = raw_config.get("dp", {})
-
-    if dp_data is None:
-        dp_data = {}
-
-    if not isinstance(dp_data, dict):
-        raise ValueError(
-            "'dp' must be a mapping."
-        )
-
-    unknown_dp_keys = (
-        set(dp_data) - SUPPORTED_DP_KEYS
-    )
-
-    if unknown_dp_keys:
-        raise ValueError(
-            "Unsupported DP field(s): "
-            + ", ".join(sorted(unknown_dp_keys))
-        )
-
-    dp_config = DifferentialPrivacyConfig(
-        **dp_data
-    )
-
-    # --------------------------------------------------------------
-    # Experiment configuration
-    # --------------------------------------------------------------
-
     experiment_fields = {
         key: value
         for key, value in raw_config.items()
-        if key not in {
-            "dataset",
-            "dp",
-        }
+        if key != "dataset"
     }
 
     return ExperimentConfig(
         dataset=dataset,
-        dp=dp_config,
         **experiment_fields,
     )
 
@@ -246,6 +201,7 @@ def set_reproducibility(seed: int) -> None:
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(seed)
 
+    # Keep CPU execution deterministic for the current experiment runner.
     torch.set_num_threads(1)
 
 
@@ -256,15 +212,12 @@ def set_reproducibility(seed: int) -> None:
 def create_partitions(
     config: ExperimentConfig,
 ) -> Dict[str, list]:
-    """
-    Create the deterministic hospital partition used by
-    the current FedMed experiment setup.
-    """
+    """Create the deterministic hospital partition."""
 
     if config.dataset.partition != "non_iid":
         raise ValueError(
-            "The common runner currently supports "
-            "the 'non_iid' partition."
+            "The common runner currently supports only "
+            "'non_iid' partitioning."
         )
 
     # Current synthetic FedMed experiment dataset.
@@ -279,15 +232,13 @@ def create_partitions(
         2, 2, 2, 2,
     ]
 
-    partitions = partition_dirichlet(
+    return partition_dirichlet(
         volumes,
         labels,
         num_clients=NUM_CLIENTS,
         alpha=config.dataset.dirichlet_alpha,
         seed=config.dataset.seed,
     )
-
-    return partitions
 
 
 # ---------------------------------------------------------------------------
@@ -297,7 +248,7 @@ def create_partitions(
 def run_from_config(
     config: ExperimentConfig,
 ) -> Dict[str, Any]:
-    """Launch the configured experiment."""
+    """Initialize and run the configured experiment."""
 
     set_reproducibility(
         config.dataset.seed
@@ -316,9 +267,9 @@ def run_from_config(
         result = {}
 
     if not isinstance(result, dict):
-        result = {
-            "result": result
-        }
+        raise TypeError(
+            "Experiment must return a dictionary."
+        )
 
     # Store the exact configuration used.
     result["config"] = {
@@ -340,13 +291,6 @@ def run_from_config(
             ),
             "seed": config.dataset.seed,
         },
-        "dp": {
-            "enabled": config.dp.enabled,
-            "max_grad_norm": config.dp.max_grad_norm,
-            "noise_multiplier": config.dp.noise_multiplier,
-            "epsilon": config.dp.epsilon,
-            "delta": config.dp.delta,
-        },
     }
 
     # Store the exact partition used so the experiment
@@ -364,7 +308,7 @@ def save_result(
     result: Dict[str, Any],
     config_path: Path,
 ) -> Path:
-    """Save experiment result as JSON."""
+    """Save the experiment result as JSON."""
 
     output_dir = (
         PROJECT_ROOT
@@ -390,7 +334,6 @@ def save_result(
             result,
             file,
             indent=2,
-            default=str,
         )
 
     return output_path
@@ -401,6 +344,8 @@ def save_result(
 # ---------------------------------------------------------------------------
 
 def main() -> int:
+    """CLI entry point."""
+
     args = parse_args()
 
     try:
@@ -457,26 +402,6 @@ def main() -> int:
                 f"Mu       : {config.proximal_mu}"
             )
 
-        print(
-            f"DP       : {config.dp.enabled}"
-        )
-
-        print(
-            f"DP norm  : {config.dp.max_grad_norm}"
-        )
-
-        print(
-            f"DP noise : {config.dp.noise_multiplier}"
-        )
-
-        print(
-            f"Epsilon  : {config.dp.epsilon}"
-        )
-
-        print(
-            f"Delta    : {config.dp.delta}"
-        )
-
         print("=" * 60)
 
         result = run_from_config(
@@ -498,10 +423,6 @@ def main() -> int:
         )
 
         print(
-            f"DP       : {config.dp.enabled}"
-        )
-
-        print(
             f"Result   : {output_path}"
         )
 
@@ -512,7 +433,6 @@ def main() -> int:
         ValueError,
         TypeError,
         KeyError,
-        ImportError,
     ) as exc:
 
         print(

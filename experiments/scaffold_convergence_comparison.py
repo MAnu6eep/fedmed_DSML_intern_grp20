@@ -12,12 +12,6 @@ The experiment records:
     - global model parameter change
     - participating clients
     - failures
-    - SCAFFOLD status
-    - SCAFFOLD participating clients
-    - SCAFFOLD round
-
-The experiment runner also supports the common
-ExperimentConfig configuration system.
 """
 
 import json
@@ -475,7 +469,7 @@ def record_strategy_metrics(
             val_loss = 0.0
             val_dice = 0.0
 
-        is_scaffold = (strategy_name.upper() == "SCAFFOLD")
+        is_scaffold = strategy_name.lower() == "scaffold"
 
         entry = {
             "round": server_round,
@@ -493,7 +487,6 @@ def record_strategy_metrics(
 
         history.append(entry)
 
-        # Automatically record to benchmark suite
         record_and_export_benchmark(
             strategy_name=strategy_name,
             metrics=entry,
@@ -652,7 +645,7 @@ def run_experiment(
     strategy = record_strategy_metrics(
         strategy,
         history,
-        display_name,
+        strategy_name,
     )
 
     client_app = fl.client.ClientApp(
