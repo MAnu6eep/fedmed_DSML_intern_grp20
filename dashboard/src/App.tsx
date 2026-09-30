@@ -28,81 +28,11 @@ interface LocalMetric {
  * Later this data can be replaced with
  * live WebSocket telemetry.
  */
-const MOCK_METRICS: FederationMetricPoint[] = [
-  {
-    round: 1,
-    timestamp: "2026-09-15T10:00:00Z",
-    trainingLoss: 0.42,
-    validationLoss: 0.45,
-    diceScore: 0.71,
-    communicationPayloadSize: 2.4,
-    roundDuration: 18.2,
-  },
-  {
-    round: 2,
-    timestamp: "2026-09-15T10:02:00Z",
-    trainingLoss: 0.36,
-    validationLoss: 0.39,
-    diceScore: 0.76,
-    communicationPayloadSize: 2.5,
-    roundDuration: 17.8,
-  },
-  {
-    round: 3,
-    timestamp: "2026-09-15T10:04:00Z",
-    trainingLoss: 0.31,
-    validationLoss: 0.34,
-    diceScore: 0.81,
-    communicationPayloadSize: 2.6,
-    roundDuration: 17.4,
-  },
-  {
-    round: 4,
-    timestamp: "2026-09-15T10:06:00Z",
-    trainingLoss: 0.27,
-    validationLoss: 0.3,
-    diceScore: 0.85,
-    communicationPayloadSize: 2.5,
-    roundDuration: 16.9,
-  },
-  {
-    round: 5,
-    timestamp: "2026-09-15T10:08:00Z",
-    trainingLoss: 0.23,
-    validationLoss: 0.27,
-    diceScore: 0.88,
-    communicationPayloadSize: 2.7,
-    roundDuration: 16.5,
-  },
-];
-const [segmentationSlices, setSegmentationSlices] =
-  useState<SegmentationSlice[]>([]);
-
-const [segmentationLoading, setSegmentationLoading] =
-  useState(true);
-
-const [segmentationError, setSegmentationError] =
-  useState<string | null>(null);
 export const App: React.FC = () => {
   const hospitals = useHospitalStore((state) => state.hospitals);
   const fetchHospitals = useHospitalStore(
     (state) => state.fetchHospitals
   );
-  {segmentationLoading ? (
-    <div className="bg-slate-900 rounded-xl p-6">
-      <p className="text-slate-400">
-        Loading MRI segmentation...
-      </p>
-    </div>
-  ) : segmentationError ? (
-    <div className="bg-slate-900 rounded-xl p-6">
-      <p className="text-red-400">
-        {segmentationError}
-      </p>
-    </div>
-  ) : (
-    <SegmentationViewer slices={segmentationSlices} />
-  )}
   const updateHospitalStatus = useHospitalStore(
     (state) => state.updateHospitalStatus
   );
@@ -165,7 +95,16 @@ export const App: React.FC = () => {
   >({});
 
   const [metrics, setMetrics] =
-    useState<FederationMetricPoint[]>(MOCK_METRICS);
+    useState<FederationMetricPoint[]>([]);
+
+  const [segmentationSlices, setSegmentationSlices] =
+    useState<SegmentationSlice[]>([]);
+
+  const [segmentationLoading, setSegmentationLoading] =
+    useState(true);
+
+  const [segmentationError, setSegmentationError] =
+    useState<string | null>(null);
 
   const latestMetric =
     metrics.length > 0
@@ -192,46 +131,105 @@ export const App: React.FC = () => {
   }, [fetchHospitals]);
 
   /**
-   * WebSocket telemetry connection.
+   * Load the latest federation metrics from FastAPI.
+   * WebSocket telemetry will append/update live rounds afterwards.
    */
   useEffect(() => {
-    const fetchSegmentation = async () => {
+    const loadMetrics = async () => {
+      try {
+        const response = await fetch(
+          "http://127.0.0.1:8000/api/metrics"
+        );
+
+        if (!response.ok) {
+          throw new Error(`Metrics API returned ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        setMetrics([
+          {
+            round: Number(data.round ?? 0),
+            timestamp: new Date().toISOString(),
+            trainingLoss:
+              typeof data.training_loss === "number"
+                ? data.training_loss
+                : typeof data.loss === "number"
+                  ? data.loss
+                  : undefined,
+            validationLoss:
+              typeof data.validation_loss === "number"
+                ? data.validation_loss
+                : undefined,
+            diceScore:
+              typeof data.dice === "number" ? data.dice : undefined,
+          },
+        ]);
+      } catch (error) {
+        console.error("Failed to load federation metrics:", error);
+      }
+    };
+
+    loadMetrics();
+  }, []);
+
+  /**
+   * Load MRI + Ground Truth + Prediction data
+   * from the FastAPI segmentation endpoint.
+   */
+  useEffect(() => {
+    const loadSegmentation = async () => {
       try {
         setSegmentationLoading(true);
-  
+        setSegmentationError(null);
+
         const response = await fetch(
           "http://127.0.0.1:8000/api/segmentation"
         );
-  
+
         if (!response.ok) {
-          throw new Error("Failed to fetch segmentation data");
+          throw new Error(`Segmentation API returned ${response.status}`);
         }
-  
+
         const data = await response.json();
-  
+
+        if (!Array.isArray(data.slices)) {
+          throw new Error("Invalid segmentation response: slices missing");
+        }
+
         const slices: SegmentationSlice[] = data.slices.map(
-          (slice: any) => ({
+          (slice: {
+            index: number;
+            mri: string;
+            ground_truth?: string | null;
+            prediction?: string | null;
+          }) => ({
             sliceIndex: slice.index,
             mriSlice: slice.mri,
             groundTruthMask: slice.ground_truth ?? "",
             predictedMask: slice.prediction ?? "",
           })
         );
-  
+
         setSegmentationSlices(slices);
       } catch (error) {
         setSegmentationError(
           error instanceof Error
             ? error.message
-            : "Failed to load segmentation"
+            : "Failed to load segmentation data"
         );
+        setSegmentationSlices([]);
       } finally {
         setSegmentationLoading(false);
       }
     };
-  
-    fetchSegmentation();
+
+    loadSegmentation();
   }, []);
+
+  /**
+   * WebSocket telemetry connection.
+   */
   useEffect(() => {
     const telemetryClient = new TelemetryClient();
 
@@ -566,7 +564,21 @@ export const App: React.FC = () => {
           {/* LIVE METRICS CHART */}
           <MetricsChart data={metrics} />
           {/* 2D SEGMENTATION VIEWER */}
-        
+          {segmentationLoading ? (
+            <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
+              <p className="text-slate-400">
+                Loading MRI, Ground Truth and prediction...
+              </p>
+            </div>
+          ) : segmentationError ? (
+            <div className="bg-slate-900 border border-red-900 rounded-xl p-6">
+              <p className="text-red-400">
+                Segmentation error: {segmentationError}
+              </p>
+            </div>
+          ) : (
+            <SegmentationViewer slices={segmentationSlices} />
+          )}
 
           {/* EXPERIMENT TELEMETRY SUMMARY */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
