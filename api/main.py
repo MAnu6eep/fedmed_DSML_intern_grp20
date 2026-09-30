@@ -70,9 +70,9 @@ def get_available_hospitals() -> dict[str, bool]:
 # Enable CORS for React Dashboard
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
+   allow_origins=[
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -391,24 +391,6 @@ async def test_reconnect():
     )
 
     await telemetry_manager.broadcast(event)
-    return event@app.post("/api/telemetry/test/metrics")
-async def test_metrics_event():
-    event = create_event(
-        event_type=FederationEventType.TRAINING_COMPLETED,
-        round_number=6,
-        hospital_id="hospital_b",
-        status="online",
-        payload={
-            "training_loss": 0.21,
-            "validation_loss": 0.25,
-            "dice": 0.90,
-            "communication_payload_size": 2.8,
-            "round_duration": 16.2,
-        },
-    )
-
-    await telemetry_manager.broadcast(event)
-
     return event
 @app.post("/api/telemetry/test/metrics")
 async def test_metrics_event():
