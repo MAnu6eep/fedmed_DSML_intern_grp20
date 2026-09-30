@@ -11,7 +11,7 @@ from typing import Dict
 import os
 import urllib.error
 import urllib.request
-
+from fastapi.staticfiles import StaticFiles
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -31,7 +31,7 @@ app = FastAPI(
     ),
     version="1.1.0",
 )
-
+app.mount("/segmentation", StaticFiles(directory="segmentation"), name="segmentation")
 HOSPITAL_NODES = {
     "hospital_a": (
         os.getenv("HOSPITAL_A_HOST", "hospital-a"),
