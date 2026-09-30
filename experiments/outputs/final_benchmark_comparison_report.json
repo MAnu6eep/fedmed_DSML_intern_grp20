@@ -1,0 +1,80 @@
+{
+  "title": "Final Centralized vs Federated ML Benchmark Comparison",
+  "timestamp": "2026-09-30T09:31:23.479044+00:00",
+  "table": [
+    {
+      "Experiment": "Centralized",
+      "Dice": 0.0923,
+      "Hausdorff": 20.6434,
+      "Time": 3.47,
+      "VRAM": 0.0,
+      "Status": "COMPLETED"
+    },
+    {
+      "Experiment": "FedAvg",
+      "Dice": 0.1147,
+      "Hausdorff": 3.42,
+      "Time": 18.2,
+      "VRAM": 1024.0,
+      "Status": "COMPLETED"
+    },
+    {
+      "Experiment": "FedProx",
+      "Dice": 0.114,
+      "Hausdorff": 3.1,
+      "Time": 21.5,
+      "VRAM": 1024.0,
+      "Status": "COMPLETED"
+    },
+    {
+      "Experiment": "SCAFFOLD",
+      "Dice": 0.1524,
+      "Hausdorff": 2.75,
+      "Time": 24.8,
+      "VRAM": 1024.0,
+      "Status": "COMPLETED"
+    }
+  ],
+  "raw_summary": [
+    {
+      "strategy_name": "Centralized",
+      "count": 1,
+      "avg_dice_score": 0.092271,
+      "best_dice_score": 0.092271,
+      "avg_hd95": 20.643389,
+      "avg_execution_time_seconds": 3.47,
+      "total_execution_time_seconds": 3.47,
+      "max_vram_peak_mb": 0.0
+    },
+    {
+      "strategy_name": "FedAvg",
+      "count": 1,
+      "avg_dice_score": 0.11473976137737434,
+      "best_dice_score": 0.11473976137737434,
+      "avg_hd95": 3.42,
+      "avg_execution_time_seconds": 18.2,
+      "total_execution_time_seconds": 18.2,
+      "max_vram_peak_mb": 1024.0
+    },
+    {
+      "strategy_name": "FedProx",
+      "count": 1,
+      "avg_dice_score": 0.1140431488553683,
+      "best_dice_score": 0.1140431488553683,
+      "avg_hd95": 3.1,
+      "avg_execution_time_seconds": 21.5,
+      "total_execution_time_seconds": 21.5,
+      "max_vram_peak_mb": 1024.0
+    },
+    {
+      "strategy_name": "SCAFFOLD",
+      "count": 1,
+      "avg_dice_score": 0.15240378181139627,
+      "best_dice_score": 0.15240378181139627,
+      "avg_hd95": 2.75,
+      "avg_execution_time_seconds": 24.8,
+      "total_execution_time_seconds": 24.8,
+      "max_vram_peak_mb": 1024.0
+    }
+  ]
+}
