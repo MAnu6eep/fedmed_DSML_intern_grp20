@@ -1,0 +1,42 @@
+[
+  {
+    "configuration": "Baseline",
+    "dp_enabled": false,
+    "max_grad_norm": 1.0,
+    "noise_multiplier": null,
+    "epsilon": null,
+    "delta": null,
+    "train_loss": 2.944884,
+    "parameters_valid": true
+  },
+  {
+    "configuration": "DP Low Noise",
+    "dp_enabled": true,
+    "max_grad_norm": 1.0,
+    "noise_multiplier": 0.1,
+    "epsilon": null,
+    "delta": null,
+    "train_loss": 2.946125,
+    "parameters_valid": true
+  },
+  {
+    "configuration": "DP Medium Noise",
+    "dp_enabled": true,
+    "max_grad_norm": 1.0,
+    "noise_multiplier": 0.5,
+    "epsilon": null,
+    "delta": null,
+    "train_loss": 3.030902,
+    "parameters_valid": true
+  },
+  {
+    "configuration": "DP High Noise",
+    "dp_enabled": true,
+    "max_grad_norm": 1.0,
+    "noise_multiplier": 1.0,
+    "epsilon": null,
+    "delta": null,
+    "train_loss": 3.056177,
+    "parameters_valid": true
+  }
+]
