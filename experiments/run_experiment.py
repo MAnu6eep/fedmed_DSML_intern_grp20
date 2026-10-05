@@ -3,7 +3,7 @@
 Launch a configured centralized or federated experiment from YAML.
 
 Example:
-    python experiments/run_experiment.py --config experiments/fedavg.yaml
+    python run_experiment.py --config experiments/fedavg.yaml
 """
 
 import argparse
@@ -17,19 +17,36 @@ import numpy as np
 import torch
 import yaml
 
-# Add project root to sys.path
+# ---------------------------------------------------------------------------
+# Project path
+# ---------------------------------------------------------------------------
+
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
+
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from fedmed.config.experiment import DatasetConfig, ExperimentConfig
+
+# ---------------------------------------------------------------------------
+# FedMed imports
+# ---------------------------------------------------------------------------
+
+from fedmed.config.experiment import (
+    DatasetConfig,
+    ExperimentConfig,
+)
+
 from fedmed.data.partitioner import partition_dirichlet
+
 from experiments.scaffold_convergence_comparison import (
-    DIRICHLET_ALPHA,
     NUM_CLIENTS,
     run_experiment,
 )
 
+
+# ---------------------------------------------------------------------------
+# Supported configuration fields
+# ---------------------------------------------------------------------------
 
 SUPPORTED_CONFIG_KEYS = {
     "strategy",
@@ -49,8 +66,13 @@ SUPPORTED_DATASET_KEYS = {
 }
 
 
+# ---------------------------------------------------------------------------
+# Argument parsing
+# ---------------------------------------------------------------------------
+
 def parse_args() -> argparse.Namespace:
     """Parse command-line arguments."""
+
     parser = argparse.ArgumentParser(
         description="Run a configured FedMed experiment."
     )
@@ -65,8 +87,13 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+# ---------------------------------------------------------------------------
+# YAML loading
+# ---------------------------------------------------------------------------
+
 def load_yaml_config(path: Path) -> Dict[str, Any]:
-    """Load and validate the top-level YAML structure."""
+    """Load and validate the YAML configuration."""
+
     if not path.exists():
         raise FileNotFoundError(
             f"Configuration file not found: {path}"
@@ -85,13 +112,16 @@ def load_yaml_config(path: Path) -> Dict[str, Any]:
     try:
         with path.open("r", encoding="utf-8") as file:
             data = yaml.safe_load(file)
+
     except yaml.YAMLError as exc:
         raise ValueError(
             f"Invalid YAML configuration: {exc}"
         ) from exc
 
     if data is None:
-        raise ValueError("Configuration file is empty.")
+        raise ValueError(
+            "Configuration file is empty."
+        )
 
     if not isinstance(data, dict):
         raise ValueError(
@@ -99,6 +129,7 @@ def load_yaml_config(path: Path) -> Dict[str, Any]:
         )
 
     unknown_keys = set(data) - SUPPORTED_CONFIG_KEYS
+
     if unknown_keys:
         raise ValueError(
             "Unsupported configuration field(s): "
@@ -108,11 +139,19 @@ def load_yaml_config(path: Path) -> Dict[str, Any]:
     return data
 
 
+# ---------------------------------------------------------------------------
+# Experiment configuration
+# ---------------------------------------------------------------------------
+
 def build_experiment_config(
     raw_config: Dict[str, Any],
 ) -> ExperimentConfig:
-    """Convert YAML data into the validated ExperimentConfig."""
-    dataset_data = raw_config.get("dataset", {})
+    """Convert YAML data into a validated ExperimentConfig."""
+
+    dataset_data = raw_config.get(
+        "dataset",
+        {},
+    )
 
     if dataset_data is None:
         dataset_data = {}
@@ -132,7 +171,9 @@ def build_experiment_config(
             + ", ".join(sorted(unknown_dataset_keys))
         )
 
-    dataset = DatasetConfig(**dataset_data)
+    dataset = DatasetConfig(
+        **dataset_data
+    )
 
     experiment_fields = {
         key: value
@@ -146,8 +187,13 @@ def build_experiment_config(
     )
 
 
+# ---------------------------------------------------------------------------
+# Reproducibility
+# ---------------------------------------------------------------------------
+
 def set_reproducibility(seed: int) -> None:
-    """Set deterministic random seeds for the experiment."""
+    """Set deterministic random seeds."""
+
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
@@ -159,14 +205,22 @@ def set_reproducibility(seed: int) -> None:
     torch.set_num_threads(1)
 
 
-def create_partitions(config: ExperimentConfig) -> Dict[str, list]:
+# ---------------------------------------------------------------------------
+# Dataset partitioning
+# ---------------------------------------------------------------------------
+
+def create_partitions(
+    config: ExperimentConfig,
+) -> Dict[str, list]:
     """Create the deterministic hospital partition."""
+
     if config.dataset.partition != "non_iid":
         raise ValueError(
             "The common runner currently supports only "
             "'non_iid' partitioning."
         )
 
+    # Current synthetic FedMed experiment dataset.
     volumes = [
         f"volume_{index:02d}"
         for index in range(12)
@@ -187,17 +241,37 @@ def create_partitions(config: ExperimentConfig) -> Dict[str, list]:
     )
 
 
-def run_from_config(config: ExperimentConfig) -> Dict[str, Any]:
-    """Initialize and run the configured experiment."""
-    set_reproducibility(config.dataset.seed)
+# ---------------------------------------------------------------------------
+# Run experiment
+# ---------------------------------------------------------------------------
 
-    partitions = create_partitions(config)
+def run_from_config(
+    config: ExperimentConfig,
+) -> Dict[str, Any]:
+    """Initialize and run the configured experiment."""
+
+    set_reproducibility(
+        config.dataset.seed
+    )
+
+    partitions = create_partitions(
+        config
+    )
 
     result = run_experiment(
         config,
         partitions,
     )
 
+    if result is None:
+        result = {}
+
+    if not isinstance(result, dict):
+        raise TypeError(
+            "Experiment must return a dictionary."
+        )
+
+    # Store the exact configuration used.
     result["config"] = {
         "strategy": config.strategy,
         "num_rounds": config.num_rounds,
@@ -212,22 +286,36 @@ def run_from_config(config: ExperimentConfig) -> Dict[str, Any]:
         "dataset": {
             "name": config.dataset.name,
             "partition": config.dataset.partition,
-            "dirichlet_alpha": config.dataset.dirichlet_alpha,
+            "dirichlet_alpha": (
+                config.dataset.dirichlet_alpha
+            ),
             "seed": config.dataset.seed,
         },
     }
 
+    # Store the exact partition used so the experiment
+    # can be reproduced later.
     result["partitions"] = partitions
 
     return result
 
 
+# ---------------------------------------------------------------------------
+# Result saving
+# ---------------------------------------------------------------------------
+
 def save_result(
     result: Dict[str, Any],
     config_path: Path,
 ) -> Path:
-    """Save the experiment result beside the configured outputs."""
-    output_dir = PROJECT_ROOT / "experiments" / "outputs"
+    """Save the experiment result as JSON."""
+
+    output_dir = (
+        PROJECT_ROOT
+        / "experiments"
+        / "outputs"
+    )
+
     output_dir.mkdir(
         parents=True,
         exist_ok=True,
@@ -251,27 +339,74 @@ def save_result(
     return output_path
 
 
+# ---------------------------------------------------------------------------
+# Main
+# ---------------------------------------------------------------------------
+
 def main() -> int:
     """CLI entry point."""
+
     args = parse_args()
 
     try:
-        raw_config = load_yaml_config(args.config)
-        config = build_experiment_config(raw_config)
+        raw_config = load_yaml_config(
+            args.config
+        )
+
+        config = build_experiment_config(
+            raw_config
+        )
 
         print("=" * 60)
         print("FedMed Common Experiment Runner")
         print("=" * 60)
-        print(f"Config   : {args.config}")
-        print(f"Strategy : {config.strategy}")
-        print(f"Rounds   : {config.num_rounds}")
-        print(f"Epochs   : {config.local_epochs}")
-        print(f"LR       : {config.learning_rate}")
-        print(f"Batch    : {config.batch_size}")
-        print(f"Seed     : {config.dataset.seed}")
+
+        print(
+            f"Config   : {args.config}"
+        )
+
+        print(
+            f"Strategy : {config.strategy}"
+        )
+
+        print(
+            f"Rounds   : {config.num_rounds}"
+        )
+
+        print(
+            f"Epochs   : {config.local_epochs}"
+        )
+
+        print(
+            f"LR       : {config.learning_rate}"
+        )
+
+        print(
+            f"Batch    : {config.batch_size}"
+        )
+
+        print(
+            f"Dataset  : {config.dataset.name}"
+        )
+
+        print(
+            f"Partition: {config.dataset.partition}"
+        )
+
+        print(
+            f"Seed     : {config.dataset.seed}"
+        )
+
+        if config.strategy == "fedprox":
+            print(
+                f"Mu       : {config.proximal_mu}"
+            )
+
         print("=" * 60)
 
-        result = run_from_config(config)
+        result = run_from_config(
+            config
+        )
 
         output_path = save_result(
             result,
@@ -279,16 +414,36 @@ def main() -> int:
         )
 
         print()
-        print("[SUCCESS] Experiment completed.")
-        print(f"Strategy : {config.strategy}")
-        print(f"Result   : {output_path}")
+        print(
+            "[SUCCESS] Experiment completed."
+        )
+
+        print(
+            f"Strategy : {config.strategy}"
+        )
+
+        print(
+            f"Result   : {output_path}"
+        )
 
         return 0
 
-    except (FileNotFoundError, ValueError, TypeError, KeyError) as exc:
-        print(f"[ERROR] {exc}", file=sys.stderr)
+    except (
+        FileNotFoundError,
+        ValueError,
+        TypeError,
+        KeyError,
+    ) as exc:
+
+        print(
+            f"[ERROR] {exc}",
+            file=sys.stderr,
+        )
+
         return 2
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    raise SystemExit(
+        main()
+    )
