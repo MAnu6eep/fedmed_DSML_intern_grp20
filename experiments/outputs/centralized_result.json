@@ -1,0 +1,53 @@
+{
+  "distribution": "non_iid",
+  "strategy": "Centralized",
+  "history": [
+    {
+      "round": 1,
+      "train_loss": 1.295771,
+      "global_loss": 1.097885,
+      "val_loss": 1.097885,
+      "val_dice": 0.037607,
+      "execution_time_seconds": 0.8851663999957964,
+      "vram_peak_mb": 0.0,
+      "failures": 0
+    }
+  ],
+  "config": {
+    "strategy": "centralized",
+    "num_rounds": 1,
+    "local_epochs": 1,
+    "learning_rate": 0.0001,
+    "batch_size": 2,
+    "proximal_mu": null,
+    "dataset": {
+      "name": "brats",
+      "partition": "non_iid",
+      "dirichlet_alpha": 0.5,
+      "seed": 42
+    },
+    "dp": {
+      "enabled": false
+    }
+  },
+  "partitions": {
+    "client_1": [
+      "volume_07",
+      "volume_01",
+      "volume_02",
+      "volume_11",
+      "volume_03"
+    ],
+    "client_2": [
+      "volume_06",
+      "volume_08",
+      "volume_04"
+    ],
+    "client_3": [
+      "volume_05",
+      "volume_10",
+      "volume_00",
+      "volume_09"
+    ]
+  }
+}

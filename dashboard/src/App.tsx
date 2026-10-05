@@ -1,5 +1,27 @@
 import React, { useEffect, useState } from "react";
 
+// NAVIGATION & PRESENTATION
+import { NavigationHeader, type ViewMode } from "./components/NavigationHeader";
+import { PresentationMode } from "./components/presentation/PresentationMode";
+
+// 14 INTERACTIVE PIPELINE SECTIONS
+import { HeroSection } from "./components/interactive/HeroSection";
+import { ProblemSection } from "./components/interactive/ProblemSection";
+import { DataLayerSection } from "./components/interactive/DataLayerSection";
+import { HospitalNodesSection } from "./components/interactive/HospitalNodesSection";
+import { UNetArchitectureSection } from "./components/interactive/UNetArchitectureSection";
+import { LocalTrainingSection } from "./components/interactive/LocalTrainingSection";
+import { SecureCommSection } from "./components/interactive/SecureCommSection";
+import { FederatedServerSection } from "./components/interactive/FederatedServerSection";
+import { RoundsTimelineSection } from "./components/interactive/RoundsTimelineSection";
+import { DataPartitionSection } from "./components/interactive/DataPartitionSection";
+import { EvaluationSection } from "./components/interactive/EvaluationSection";
+import { ComparisonSection } from "./components/interactive/ComparisonSection";
+import { ResilienceSection } from "./components/interactive/ResilienceSection";
+import { SegmentationSection } from "./components/interactive/SegmentationSection";
+import { CompletePipelineSection } from "./components/interactive/CompletePipelineSection";
+
+// EXISTING LIVE TELEMETRY DASHBOARD COMPONENTS
 import { Sidebar } from "./components/Sidebar";
 import { Header } from "./components/Header";
 import { HospitalNodeCard } from "./components/HospitalNodeCard";
@@ -10,215 +32,89 @@ import type { FederationMetricPoint } from "./types/metrics";
 import { useHospitalStore } from "./store/hospitalStore";
 import { TelemetryClient } from "./api/telemetry";
 import { useTelemetryStore } from "./store/telemetryStore";
-
 import type { Hospital } from "./api/client";
-import type {
-  FederationEventType,
-  FederationTelemetryEvent,
-} from "./types/federationTelemetry";
+import type { FederationEventType, FederationTelemetryEvent } from "./types/federationTelemetry";
 
 interface LocalMetric {
   loss: number;
   dice: number;
 }
 
-/**
- * Mock federation metrics
- * Used only for the chart foundation.
- * Later this data can be replaced with
- * live WebSocket telemetry.
- */
 export const App: React.FC = () => {
+  const [viewMode, setViewMode] = useState<ViewMode>("pipeline");
+
+  // TELEMETRY STORE HOOKS
   const hospitals = useHospitalStore((state) => state.hospitals);
-  const fetchHospitals = useHospitalStore(
-    (state) => state.fetchHospitals
-  );
-  const updateHospitalStatus = useHospitalStore(
-    (state) => state.updateHospitalStatus
-  );
+  const fetchHospitals = useHospitalStore((state) => state.fetchHospitals);
+  const updateHospitalStatus = useHospitalStore((state) => state.updateHospitalStatus);
 
   const addEvent = useTelemetryStore((state) => state.addEvent);
-  const setConnected = useTelemetryStore(
-    (state) => state.setConnected
-  );
+  const setConnected = useTelemetryStore((state) => state.setConnected);
+  const currentRound = useTelemetryStore((state) => state.currentRound);
+  const globalLoss = useTelemetryStore((state) => state.globalLoss);
+  const globalDice = useTelemetryStore((state) => state.globalDice);
+  const participants = useTelemetryStore((state) => state.participants);
+  const totalClients = useTelemetryStore((state) => state.totalClients);
+  const connected = useTelemetryStore((state) => state.connected);
 
-  const currentRound = useTelemetryStore(
-    (state) => state.currentRound
-  );
+  const [localMetrics] = useState<Record<string, LocalMetric>>({});
+  const [metrics, setMetrics] = useState<FederationMetricPoint[]>([]);
+  const [segmentationSlices, setSegmentationSlices] = useState<SegmentationSlice[]>([]);
+  const [segmentationLoading, setSegmentationLoading] = useState(true);
 
-  const trainingProgress = useTelemetryStore(
-    (state) => state.trainingProgress
-  );
-
-  const globalLoss = useTelemetryStore(
-    (state) => state.globalLoss
-  );
-
-  const globalDice = useTelemetryStore(
-    (state) => state.globalDice
-  );
-
-  const participants = useTelemetryStore(
-    (state) => state.participants
-  );
-
-  const totalClients = useTelemetryStore(
-    (state) => state.totalClients
-  );
-
-  const aggregationActive = useTelemetryStore(
-    (state) => state.aggregationActive
-  );
-
-  const aggregationDuration = useTelemetryStore(
-    (state) => state.aggregationDuration
-  );
-
-  const convergence = useTelemetryStore(
-    (state) => state.convergence
-  );
-
-  const events = useTelemetryStore((state) => state.events);
-
-  const connected = useTelemetryStore(
-    (state) => state.connected
-  );
-
-  /**
-   * Live local hospital metrics received
-   * from WebSocket telemetry.
-   *
-   * hospitalStore values are used as fallback.
-   */
-  const [localMetrics, setLocalMetrics] = useState<
-    Record<string, LocalMetric>
-  >({});
-
-  const [metrics, setMetrics] =
-    useState<FederationMetricPoint[]>([]);
-
-  const [segmentationSlices, setSegmentationSlices] =
-    useState<SegmentationSlice[]>([]);
-
-  const [segmentationLoading, setSegmentationLoading] =
-    useState(true);
-
-  const [segmentationError, setSegmentationError] =
-    useState<string | null>(null);
-
-  const latestMetric =
-    metrics.length > 0
-      ? metrics[metrics.length - 1]
-      : undefined;
-
-  /**
-   * Map federation events to hospital status.
-   */
-  const statusByEvent: Partial<
-    Record<FederationEventType, Hospital["status"]>
-  > = {
+  const statusByEvent: Partial<Record<FederationEventType, Hospital["status"]>> = {
     client_connected: "online",
     client_disconnected: "offline",
     training_started: "training",
     training_completed: "online",
   };
 
-  /**
-   * Initial hospital data fetch.
-   */
   useEffect(() => {
     fetchHospitals();
   }, [fetchHospitals]);
 
-  /**
-   * Load the latest federation metrics from FastAPI.
-   * WebSocket telemetry will append/update live rounds afterwards.
-   */
   useEffect(() => {
     const loadMetrics = async () => {
       try {
-        const response = await fetch(
-          "http://127.0.0.1:8000/api/metrics"
-        );
-
-        if (!response.ok) {
-          throw new Error(`Metrics API returned ${response.status}`);
-        }
-
+        const response = await fetch("http://127.0.0.1:8000/api/metrics");
+        if (!response.ok) return;
         const data = await response.json();
-
         setMetrics([
           {
             round: Number(data.round ?? 0),
             timestamp: new Date().toISOString(),
-            trainingLoss:
-              typeof data.training_loss === "number"
-                ? data.training_loss
-                : typeof data.loss === "number"
-                  ? data.loss
-                  : undefined,
-            validationLoss:
-              typeof data.validation_loss === "number"
-                ? data.validation_loss
-                : undefined,
-            diceScore:
-              typeof data.dice === "number" ? data.dice : undefined,
+            trainingLoss: typeof data.training_loss === "number" ? data.training_loss : typeof data.loss === "number" ? data.loss : undefined,
+            validationLoss: typeof data.validation_loss === "number" ? data.validation_loss : undefined,
+            diceScore: typeof data.dice === "number" ? data.dice : undefined,
           },
         ]);
       } catch (error) {
-        console.error("Failed to load federation metrics:", error);
+        // Fallback for static presentation
       }
     };
 
     loadMetrics();
   }, []);
 
-  /**
-   * Load MRI + Ground Truth + Prediction data
-   * from the FastAPI segmentation endpoint.
-   */
   useEffect(() => {
     const loadSegmentation = async () => {
       try {
         setSegmentationLoading(true);
-        setSegmentationError(null);
-
-        const response = await fetch(
-          "http://127.0.0.1:8000/api/segmentation"
-        );
-
-        if (!response.ok) {
-          throw new Error(`Segmentation API returned ${response.status}`);
-        }
-
+        const response = await fetch("http://127.0.0.1:8000/api/segmentation");
+        if (!response.ok) throw new Error("Segmentation API unavailable");
         const data = await response.json();
-
-        if (!Array.isArray(data.slices)) {
-          throw new Error("Invalid segmentation response: slices missing");
+        if (Array.isArray(data.slices)) {
+          setSegmentationSlices(
+            data.slices.map((slice: { index: number; mri: string; ground_truth?: string | null; prediction?: string | null }) => ({
+              sliceIndex: slice.index,
+              mriSlice: slice.mri,
+              groundTruthMask: slice.ground_truth ?? "",
+              predictedMask: slice.prediction ?? "",
+            }))
+          );
         }
-
-        const slices: SegmentationSlice[] = data.slices.map(
-          (slice: {
-            index: number;
-            mri: string;
-            ground_truth?: string | null;
-            prediction?: string | null;
-          }) => ({
-            sliceIndex: slice.index,
-            mriSlice: slice.mri,
-            groundTruthMask: slice.ground_truth ?? "",
-            predictedMask: slice.prediction ?? "",
-          })
-        );
-
-        setSegmentationSlices(slices);
       } catch (error) {
-        setSegmentationError(
-          error instanceof Error
-            ? error.message
-            : "Failed to load segmentation data"
-        );
-        setSegmentationSlices([]);
+        // Static mode fallback
       } finally {
         setSegmentationLoading(false);
       }
@@ -227,587 +123,144 @@ export const App: React.FC = () => {
     loadSegmentation();
   }, []);
 
-  /**
-   * WebSocket telemetry connection.
-   */
   useEffect(() => {
     const telemetryClient = new TelemetryClient();
-
     telemetryClient.connect(
       (event: FederationTelemetryEvent) => {
-        console.log("Telemetry event:", event);
-
-        // Store event for history/review.
         addEvent(event);
-
-        // Update hospital connection/training state.
         if (event.hospital_id) {
-          const nextStatus =
-            statusByEvent[event.event_type];
-
-          if (nextStatus) {
-            updateHospitalStatus(
-              event.hospital_id,
-              nextStatus
-            );
-          }
-        }
-
-        const payload = event.payload;
-
-        const trainingLoss = payload.training_loss;
-        const validationLoss = payload.validation_loss;
-        const diceScore = payload.dice;
-        const communicationPayloadSize =
-          typeof payload.communication_payload_size === "number"
-            ? payload.communication_payload_size
-            : undefined;
-
-        const roundDuration =
-          typeof payload.round_duration === "number"
-            ? payload.round_duration
-            : typeof payload.duration_seconds === "number"
-              ? payload.duration_seconds
-              : typeof payload.duration_ms === "number"
-                ? payload.duration_ms / 1000
-                : undefined;
-
-        const hasMetrics =
-          typeof trainingLoss === "number" ||
-          typeof validationLoss === "number" ||
-          typeof diceScore === "number" ||
-          typeof communicationPayloadSize === "number" ||
-          typeof roundDuration === "number";
-
-        if (hasMetrics) {
-          setMetrics((previous) => {
-            const existingIndex = previous.findIndex(
-              (metric) => metric.round === event.round
-            );
-
-            const newPoint: FederationMetricPoint = {
-              round: event.round,
-              timestamp: event.timestamp,
-              ...(typeof trainingLoss === "number"
-                ? { trainingLoss }
-                : {}),
-              ...(typeof validationLoss === "number"
-                ? { validationLoss }
-                : {}),
-              ...(typeof diceScore === "number"
-                ? { diceScore }
-                : {}),
-              ...(typeof communicationPayloadSize === "number"
-                ? { communicationPayloadSize }
-                : {}),
-              ...(typeof roundDuration === "number"
-                ? { roundDuration }
-                : {}),
-            };
-
-            if (existingIndex >= 0) {
-              const updated = [...previous];
-
-              updated[existingIndex] = {
-                ...updated[existingIndex],
-                ...newPoint,
-              };
-
-              return updated;
-            }
-
-            return [...previous, newPoint].sort(
-              (a, b) => a.round - b.round
-            );
-          });
-        }
-
-        /**
-         * Update local hospital metrics
-         * from live telemetry.
-         */
-        if (
-          event.hospital_id &&
-          (event.event_type === "training_completed" ||
-            event.event_type === "training_started")
-        ) {
-          const loss = event.payload.loss;
-          const dice = event.payload.dice;
-
-          if (
-            typeof loss === "number" ||
-            typeof dice === "number"
-          ) {
-            setLocalMetrics((previous) => {
-              const existing =
-                previous[event.hospital_id!] ?? {
-                  loss: 0,
-                  dice: 0,
-                };
-
-              return {
-                ...previous,
-
-                [event.hospital_id!]: {
-                  loss:
-                    typeof loss === "number"
-                      ? loss
-                      : existing.loss,
-
-                  dice:
-                    typeof dice === "number"
-                      ? dice
-                      : existing.dice,
-                },
-              };
-            });
-          }
+          const nextStatus = statusByEvent[event.event_type];
+          if (nextStatus) updateHospitalStatus(event.hospital_id, nextStatus);
         }
       },
-
-      // WebSocket connected
-      () => {
-        setConnected(true);
-      },
-
-      // WebSocket error
-      () => {
-        setConnected(false);
-      },
-
-      // WebSocket closed
-      () => {
-        setConnected(false);
-      }
+      () => setConnected(true),
+      () => setConnected(false),
+      () => setConnected(false)
     );
-
-    // Cleanup WebSocket when component unmounts.
     return () => {
       telemetryClient.disconnect();
       setConnected(false);
     };
-  }, [
-    addEvent,
-    setConnected,
-    updateHospitalStatus,
-  ]);
+  }, [addEvent, setConnected, updateHospitalStatus]);
+
+  const scrollToPipeline = () => {
+    const el = document.getElementById("problem");
+    if (el) el.scrollIntoView({ behavior: "smooth" });
+  };
 
   return (
-    <div className="flex min-h-screen bg-slate-950 text-slate-100">
-      {/* SIDEBAR */}
-      <Sidebar />
+    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-cyan-500 selection:text-slate-950">
+      {/* GLOBAL NAVIGATION HEADER */}
+      <NavigationHeader
+        currentView={viewMode}
+        onViewChange={setViewMode}
+        connected={connected}
+      />
 
-      <div className="flex-1 flex flex-col">
-        {/* HEADER */}
-        <Header />
+      {/* FULLSCREEN PRESENTATION MODE MODAL */}
+      {viewMode === "presentation" && (
+        <PresentationMode onExit={() => setViewMode("pipeline")} />
+      )}
 
-        <main className="p-8 space-y-6 flex-1 overflow-y-auto">
-          {/* PAGE HEADER */}
-          <div>
-            <h2 className="text-xl font-semibold text-white">
-              Federated Hospital Nodes
-            </h2>
+      {/* VIEW MODE 1: INTERACTIVE SYSTEM PIPELINE VISUALIZER */}
+      {viewMode === "pipeline" && (
+        <main className="space-y-0">
+          <HeroSection
+            onExplore={scrollToPipeline}
+            onStartPresentation={() => setViewMode("presentation")}
+          />
+          <ProblemSection />
+          <DataLayerSection />
+          <HospitalNodesSection />
+          <UNetArchitectureSection />
+          <LocalTrainingSection />
+          <SecureCommSection />
+          <FederatedServerSection />
+          <RoundsTimelineSection />
+          <DataPartitionSection />
+          <EvaluationSection />
+          <ComparisonSection />
+          <ResilienceSection />
+          <SegmentationSection />
+          <CompletePipelineSection />
 
-            <p className="text-sm text-slate-400">
-              Live federated training and convergence telemetry
+          {/* FOOTER */}
+          <footer className="py-12 px-6 bg-slate-950 border-t border-slate-800 text-center text-xs text-slate-400 space-y-2">
+            <p className="font-bold text-slate-200">
+              FedMed • Hybrid Privacy-Preserving Federated Learning for 3D Brain Tumor Segmentation
             </p>
-          </div>
-
-          {/* GLOBAL METRICS */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            {/* ROUND */}
-            <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
-              <p className="text-sm text-slate-400">
-                Global FL Round
-              </p>
-
-              <p className="text-3xl font-bold text-white mt-2">
-                Round {currentRound}
-              </p>
-
-              <p className="text-xs text-slate-500 mt-2">
-                Current federated round
-              </p>
-            </div>
-
-            {/* GLOBAL LOSS */}
-            <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
-              <p className="text-sm text-slate-400">
-                Global Loss
-              </p>
-
-              <p className="text-3xl font-bold text-white mt-2">
-                {globalLoss > 0
-                  ? globalLoss.toFixed(4)
-                  : "--"}
-              </p>
-
-              <p className="text-xs text-slate-500 mt-2">
-                Global model loss
-              </p>
-            </div>
-
-            {/* GLOBAL DICE */}
-            <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
-              <p className="text-sm text-slate-400">
-                Global Dice
-              </p>
-
-              <p className="text-3xl font-bold text-white mt-2">
-                {globalDice > 0
-                  ? globalDice.toFixed(4)
-                  : "--"}
-              </p>
-
-              <p className="text-xs text-slate-500 mt-2">
-                Global segmentation score
-              </p>
-            </div>
-
-            {/* PARTICIPATION */}
-            <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
-              <p className="text-sm text-slate-400">
-                Client Participation
-              </p>
-
-              <p className="text-3xl font-bold text-white mt-2">
-                {participants}/{totalClients}
-              </p>
-
-              <p className="text-xs text-slate-500 mt-2">
-                Clients participating this round
-              </p>
-            </div>
-          </div>
-
-          {/* TRAINING + AGGREGATION */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* TRAINING */}
-            <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
-              <p className="text-sm text-slate-400">
-                Training Progress
-              </p>
-
-              <p className="text-3xl font-bold text-white mt-2">
-                {trainingProgress}%
-              </p>
-
-              <div className="w-full bg-slate-800 rounded-full h-2 mt-4">
-                <div
-                  className="bg-blue-500 h-2 rounded-full transition-all duration-500"
-                  style={{
-                    width: `${trainingProgress}%`,
-                  }}
-                />
-              </div>
-            </div>
-
-            {/* AGGREGATION */}
-            <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
-              <p className="text-sm text-slate-400">
-                Aggregation Status
-              </p>
-
-              <div className="flex items-center gap-3 mt-3">
-                <div
-                  className={`h-3 w-3 rounded-full ${
-                    aggregationActive
-                      ? "bg-yellow-500"
-                      : "bg-green-500"
-                  }`}
-                />
-
-                <p className="text-lg font-semibold text-white">
-                  {aggregationActive
-                    ? "Aggregation Running"
-                    : "Aggregation Complete"}
-                </p>
-              </div>
-
-              <p className="text-xs text-slate-500 mt-2">
-                {aggregationDuration > 0
-                  ? `Last aggregation: ${aggregationDuration.toFixed(
-                      2
-                    )}s`
-                  : "Waiting for aggregation telemetry"}
-              </p>
-            </div>
-
-            {/* CONNECTION */}
-            <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
-              <p className="text-sm text-slate-400">
-                Telemetry Connection
-              </p>
-
-              <div className="flex items-center gap-3 mt-3">
-                <div
-                  className={`h-3 w-3 rounded-full ${
-                    connected
-                      ? "bg-green-500"
-                      : "bg-red-500"
-                  }`}
-                />
-
-                <p className="text-lg font-semibold text-white">
-                  {connected
-                    ? "WebSocket Connected"
-                    : "Disconnected"}
-                </p>
-              </div>
-
-              <p className="text-xs text-slate-500 mt-2">
-                Real-time federation updates
-              </p>
-            </div>
-          </div>
-
-          {/* LIVE METRICS CHART */}
-          <MetricsChart data={metrics} />
-          {/* 2D SEGMENTATION VIEWER */}
-          {segmentationLoading ? (
-            <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
-              <p className="text-slate-400">
-                Loading MRI, Ground Truth and prediction...
-              </p>
-            </div>
-          ) : segmentationError ? (
-            <div className="bg-slate-900 border border-red-900 rounded-xl p-6">
-              <p className="text-red-400">
-                Segmentation error: {segmentationError}
-              </p>
-            </div>
-          ) : (
-            <SegmentationViewer slices={segmentationSlices} />
-          )}
-
-          {/* EXPERIMENT TELEMETRY SUMMARY */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* ROUND DURATION */}
-            <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
-              <p className="text-sm text-slate-400">
-                Round Duration
-              </p>
-
-              <p className="text-3xl font-bold text-white mt-2">
-                {typeof latestMetric?.roundDuration === "number"
-                  ? `${latestMetric.roundDuration.toFixed(2)}s`
-                  : "--"}
-              </p>
-
-              <p className="text-xs text-slate-500 mt-2">
-                Latest completed federation round
-              </p>
-            </div>
-
-            {/* COMMUNICATION PAYLOAD */}
-            <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
-              <p className="text-sm text-slate-400">
-                Communication Payload
-              </p>
-
-              <p className="text-3xl font-bold text-white mt-2">
-                {typeof latestMetric?.communicationPayloadSize === "number"
-                  ? `${latestMetric.communicationPayloadSize.toFixed(2)} MB`
-                  : "--"}
-              </p>
-
-              <p className="text-xs text-slate-500 mt-2">
-                Latest client update payload
-              </p>
-            </div>
-          </div>
-
-          {/* CONVERGENCE */}
-          <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
-            <div className="mb-6">
-              <h3 className="text-lg font-semibold text-white">
-                Federated Model Convergence
-              </h3>
-
-              <p className="text-sm text-slate-400">
-                Global loss and Dice score across completed rounds
-              </p>
-            </div>
-
-            {convergence.length === 0 ? (
-              <div className="h-64 flex items-center justify-center">
-                <p className="text-sm text-slate-500">
-                  Waiting for convergence metrics...
-                </p>
-              </div>
-            ) : (
-              <div className="w-full h-72 flex items-end gap-4">
-                {convergence.map((metric) => (
-                  <div
-                    key={metric.round}
-                    className="flex-1 h-full flex flex-col justify-end"
-                  >
-                    <div className="flex items-end justify-center gap-2 h-full">
-                      {/* DICE */}
-                      <div
-                        className="w-5 bg-blue-500 rounded-t transition-all duration-500"
-                        style={{
-                          height: `${Math.min(
-                            metric.dice * 100,
-                            100
-                          )}%`,
-                        }}
-                        title={`Round ${metric.round} Dice: ${metric.dice}`}
-                      />
-
-                      {/* LOSS */}
-                      <div
-                        className="w-5 bg-red-500 rounded-t transition-all duration-500"
-                        style={{
-                          height: `${Math.min(
-                            metric.loss * 100,
-                            100
-                          )}%`,
-                        }}
-                        title={`Round ${metric.round} Loss: ${metric.loss}`}
-                      />
-                    </div>
-
-                    <p className="text-xs text-slate-500 text-center mt-2">
-                      R{metric.round}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            <div className="flex gap-6 mt-4 text-xs text-slate-400">
-              <div className="flex items-center gap-2">
-                <span className="h-2 w-2 bg-blue-500 rounded-full" />
-                Dice
-              </div>
-
-              <div className="flex items-center gap-2">
-                <span className="h-2 w-2 bg-red-500 rounded-full" />
-                Loss
-              </div>
-            </div>
-          </div>
-
-          {/* HOSPITAL NODES */}
-          <div>
-            <h3 className="text-lg font-semibold text-white mb-4">
-              Hospital Nodes
-            </h3>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {hospitals.map((hospital) => {
-                const liveMetrics =
-                  localMetrics[hospital.hospital_id];
-
-                const localLoss =
-                  liveMetrics?.loss ?? hospital.loss;
-
-                const localDice =
-                  liveMetrics?.dice ?? hospital.dice;
-
-                return (
-                  <HospitalNodeCard
-                    key={hospital.hospital_id}
-                    node={{
-                      id: hospital.hospital_id,
-                      name: hospital.name,
-                      host: "127.0.0.1",
-                      port: hospital.port,
-                      grpcPort: hospital.port,
-                      sampleCount: hospital.samples,
-                      status: hospital.status,
-                      currentRound: currentRound,
-
-                      // Live WebSocket metrics first,
-                      // HTTP metrics as fallback.
-                      localLoss,
-                      localDice,
-
-                      lastHeartbeat:
-                        new Date().toISOString(),
-
-                      isSecAggActive: true,
-                    }}
-                  />
-                );
-              })}
-            </div>
-          </div>
-
-          {/* LIVE ACTIVITY */}
-          <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h3 className="text-lg font-semibold text-white">
-                  Live Federation Activity
-                </h3>
-
-                <p className="text-sm text-slate-400">
-                  Real-time events from federation server
-                </p>
-              </div>
-
-              <span
-                className={`px-3 py-1 rounded-full text-xs font-medium ${
-                  connected
-                    ? "bg-green-500/10 text-green-400"
-                    : "bg-red-500/10 text-red-400"
-                }`}
-              >
-                {connected ? "LIVE" : "OFFLINE"}
-              </span>
-            </div>
-
-            <div className="space-y-2">
-              {events.length === 0 ? (
-                <p className="text-sm text-slate-500">
-                  Waiting for federation events...
-                </p>
-              ) : (
-                events
-                  .slice()
-                  .reverse()
-                  .slice(0, 8)
-                  .map((event, index) => (
-                    <div
-                      key={`${event.timestamp}-${index}`}
-                      className="flex items-center justify-between bg-slate-950 rounded-lg px-4 py-3"
-                    >
-                      <div>
-                        <p className="text-sm text-slate-200">
-                          {event.event_type
-                            .replaceAll("_", " ")
-                            .replace(/\b\w/g, (char) =>
-                              char.toUpperCase()
-                            )}
-                        </p>
-
-                        <p className="text-xs text-slate-500">
-                          {event.hospital_id
-                            ? event.hospital_id
-                            : "Federation Server"}
-                        </p>
-                      </div>
-
-                      <div className="text-right">
-                        <p className="text-xs text-slate-400">
-                          Round {event.round}
-                        </p>
-
-                        <p className="text-xs text-slate-600">
-                          {new Date(
-                            event.timestamp
-                          ).toLocaleTimeString()}
-                        </p>
-                      </div>
-                    </div>
-                  ))
-              )}
-            </div>
-          </div>
+            <p className="text-slate-400">
+              Built with MONAI, PyTorch, Flower, TenSEAL (CKKS), SecAgg+, FastAPI, React & Tailwind CSS.
+            </p>
+          </footer>
         </main>
-      </div>
+      )}
+
+      {/* VIEW MODE 2: LIVE TELEMETRY DASHBOARD */}
+      {viewMode === "telemetry" && (
+        <div className="flex min-h-screen">
+          <Sidebar />
+          <div className="flex-1 flex flex-col">
+            <Header />
+            <main className="p-8 space-y-6 flex-1 overflow-y-auto">
+              <div>
+                <h2 className="text-xl font-semibold text-white">Federated Hospital Nodes Telemetry</h2>
+                <p className="text-sm text-slate-400">Live federated training metrics and node status monitor</p>
+              </div>
+
+              {/* GLOBAL METRICS */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
+                  <p className="text-sm text-slate-400">Global FL Round</p>
+                  <p className="text-3xl font-bold text-white mt-2">Round {currentRound}</p>
+                </div>
+                <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
+                  <p className="text-sm text-slate-400">Global Loss</p>
+                  <p className="text-3xl font-bold text-white mt-2">{globalLoss > 0 ? globalLoss.toFixed(4) : "--"}</p>
+                </div>
+                <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
+                  <p className="text-sm text-slate-400">Global Dice Score</p>
+                  <p className="text-3xl font-bold text-white mt-2">{globalDice > 0 ? globalDice.toFixed(4) : "--"}</p>
+                </div>
+                <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
+                  <p className="text-sm text-slate-400">Participation Quorum</p>
+                  <p className="text-3xl font-bold text-white mt-2">{participants}/{totalClients}</p>
+                </div>
+              </div>
+
+              <MetricsChart data={metrics} />
+
+              {/* HOSPITAL NODES */}
+              <div>
+                <h3 className="text-lg font-semibold text-white mb-4">Hospital Nodes</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  {hospitals.map((hospital) => (
+                    <HospitalNodeCard
+                      key={hospital.hospital_id}
+                      node={{
+                        id: hospital.hospital_id,
+                        name: hospital.name,
+                        host: "127.0.0.1",
+                        port: hospital.port,
+                        grpcPort: hospital.port,
+                        sampleCount: hospital.samples,
+                        status: hospital.status,
+                        currentRound: currentRound,
+                        localLoss: localMetrics[hospital.hospital_id]?.loss ?? hospital.loss,
+                        localDice: localMetrics[hospital.hospital_id]?.dice ?? hospital.dice,
+                        lastHeartbeat: new Date().toISOString(),
+                        isSecAggActive: true,
+                      }}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              {!segmentationLoading && <SegmentationViewer slices={segmentationSlices} />}
+            </main>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

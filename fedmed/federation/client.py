@@ -65,7 +65,10 @@ class FedMedClient(fl.client.NumPyClient):
         # The list is configurable and can also be supplied through
         # the Flower fit config using "encrypted_parameters".
         # --------------------------------------------------------------
-        self.tenseal_engine = TenSEALEngine()
+        try:
+            self.tenseal_engine = TenSEALEngine()
+        except Exception:
+            self.tenseal_engine = None
         self.encrypted_parameters: List[str] = []
 
         # --------------------------------------------------------------

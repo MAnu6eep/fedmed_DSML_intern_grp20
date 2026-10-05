@@ -1,6 +1,6 @@
 {
   "distribution": "Non-IID",
-  "strategy": "FedAvg",
+  "strategy": "SCAFFOLD",
   "settings": {
     "num_clients": 3,
     "num_rounds": 1,
@@ -16,23 +16,23 @@
     {
       "round": 1,
       "train_loss": 1.1082139166666667,
-      "global_loss": 0.9574267500000001,
-      "val_loss": 0.9574267500000001,
+      "global_loss": 0.9574267499999999,
+      "val_loss": 0.9574267499999999,
       "val_dice": 0.10567283333333333,
       "parameter_delta": 0.0,
       "participants": 3,
       "failures": 0,
-      "scaffold": false,
-      "scaffold_clients": 0,
-      "scaffold_round": 0,
-      "execution_time_seconds": 76.6592,
+      "scaffold": true,
+      "scaffold_clients": 3,
+      "scaffold_round": 1,
+      "execution_time_seconds": 281.4806,
       "vram_peak_mb": 0.0,
       "vram_current_mb": 0.0,
       "cuda_available": false
     }
   ],
   "config": {
-    "strategy": "fedavg",
+    "strategy": "scaffold",
     "num_rounds": 1,
     "local_epochs": 1,
     "learning_rate": 0.0001,

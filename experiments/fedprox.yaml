@@ -1,9 +1,11 @@
-strategy: fedavg
+strategy: fedprox
 
 rounds: 1
 local_epochs: 1
 batch_size: 2
 learning_rate: 0.0001
+
+mu: 0.01
 
 partition:
   type: non_iid

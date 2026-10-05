@@ -1,4 +1,4 @@
-strategy: fedavg
+strategy: scaffold
 
 rounds: 1
 local_epochs: 1

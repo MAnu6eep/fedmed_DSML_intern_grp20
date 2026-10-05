@@ -31,6 +31,7 @@ app = FastAPI(
     ),
     version="1.1.0",
 )
+os.makedirs("segmentation", exist_ok=True)
 app.mount("/segmentation", StaticFiles(directory="segmentation"), name="segmentation")
 HOSPITAL_NODES = {
     "hospital_a": (

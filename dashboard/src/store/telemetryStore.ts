@@ -113,7 +113,7 @@ export const useTelemetryStore = create<TelemetryStore>((set) => ({
             event.payload.duration_seconds;
         }
 
-        if (event.payload.aggregation_time_ms !== undefined) {
+        if (typeof event.payload.aggregation_time_ms === "number") {
           aggregationDuration =
             event.payload.aggregation_time_ms / 1000;
         }

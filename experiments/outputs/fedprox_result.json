@@ -1,13 +1,13 @@
 {
   "distribution": "Non-IID",
-  "strategy": "FedAvg",
+  "strategy": "FedProx",
   "settings": {
     "num_clients": 3,
     "num_rounds": 1,
     "local_epochs": 1,
     "learning_rate": 0.0001,
     "batch_size": 2,
-    "proximal_mu": null,
+    "proximal_mu": 0.01,
     "partition": "non_iid",
     "dirichlet_alpha": 0.5,
     "seed": 42
@@ -15,29 +15,29 @@
   "history": [
     {
       "round": 1,
-      "train_loss": 1.1082139166666667,
-      "global_loss": 0.9574267500000001,
-      "val_loss": 0.9574267500000001,
-      "val_dice": 0.10567283333333333,
+      "train_loss": 1.1083054166666664,
+      "global_loss": 0.95742725,
+      "val_loss": 0.95742725,
+      "val_dice": 0.10576716666666668,
       "parameter_delta": 0.0,
       "participants": 3,
       "failures": 0,
       "scaffold": false,
       "scaffold_clients": 0,
       "scaffold_round": 0,
-      "execution_time_seconds": 76.6592,
+      "execution_time_seconds": 113.7486,
       "vram_peak_mb": 0.0,
       "vram_current_mb": 0.0,
       "cuda_available": false
     }
   ],
   "config": {
-    "strategy": "fedavg",
+    "strategy": "fedprox",
     "num_rounds": 1,
     "local_epochs": 1,
     "learning_rate": 0.0001,
     "batch_size": 2,
-    "proximal_mu": null,
+    "proximal_mu": 0.01,
     "dataset": {
       "name": "brats",
       "partition": "non_iid",
