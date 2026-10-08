@@ -1,0 +1,125 @@
+{
+  "current_version": 7,
+  "status": "FEDERATED",
+  "last_updated": "2026-10-08T09:30:36.013222+00:00",
+  "federation_round": 7,
+  "strategy": "FedAvg",
+  "history": [
+    {
+      "version": 7,
+      "round": 7,
+      "strategy": "FedAvg",
+      "participating_hospitals": [
+        "Meridian Brain & Spine Institute",
+        "Asteria Institute of Medical Sciences",
+        "Crescent NeuroCare Hospital"
+      ],
+      "sample_count": 9,
+      "created_at": "2026-10-08T09:30:36.013222+00:00",
+      "metrics": {
+        "loss": 0.6905,
+        "dice": 0.4855
+      },
+      "checkpoint_path": "C:\\fedmed_DSML_intern_grp20\\data\\checkpoints\\global_model_v7.pt",
+      "status": "Active"
+    },
+    {
+      "version": 6,
+      "round": 6,
+      "strategy": "FedAvg",
+      "participating_hospitals": [
+        "Zenith Advanced Care Hospital",
+        "Meridian Brain & Spine Institute"
+      ],
+      "sample_count": 6,
+      "created_at": "2026-10-08T08:53:26.417639+00:00",
+      "metrics": {
+        "loss": 0.6801,
+        "dice": 0.5483
+      },
+      "checkpoint_path": "C:\\fedmed_DSML_intern_grp20\\data\\checkpoints\\global_model_v6.pt",
+      "status": "Active"
+    },
+    {
+      "version": 5,
+      "round": 5,
+      "strategy": "FedAvg",
+      "participating_hospitals": [
+        "Mayo Clinic Neuro"
+      ],
+      "sample_count": 3,
+      "created_at": "2026-10-08T07:50:57.452833+00:00",
+      "metrics": {
+        "loss": 0.6905,
+        "dice": 0.5413
+      },
+      "checkpoint_path": "C:\\fedmed_DSML_intern_grp20\\data\\checkpoints\\global_model_v5.pt",
+      "status": "Active"
+    },
+    {
+      "version": 4,
+      "round": 4,
+      "strategy": "FedAvg",
+      "participating_hospitals": [
+        "Medico Life",
+        "St Jude Research Hospital"
+      ],
+      "sample_count": 6,
+      "created_at": "2026-10-08T07:50:29.364011+00:00",
+      "metrics": {
+        "loss": 0.4481,
+        "dice": 0.7388
+      },
+      "checkpoint_path": "C:\\fedmed_DSML_intern_grp20\\data\\checkpoints\\global_model_v4.pt",
+      "status": "Active"
+    },
+    {
+      "version": 3,
+      "round": 3,
+      "strategy": "FedAvg",
+      "participating_hospitals": [
+        "Medico Life"
+      ],
+      "sample_count": 3,
+      "created_at": "2026-10-08T07:03:08.570529+00:00",
+      "metrics": {
+        "loss": 0.2757,
+        "dice": 0.9012
+      },
+      "checkpoint_path": "C:\\fedmed_DSML_intern_grp20\\data\\checkpoints\\global_model_v3.pt",
+      "status": "Active"
+    },
+    {
+      "version": 2,
+      "round": 2,
+      "strategy": "FedAvg",
+      "participating_hospitals": [
+        "Mayo Clinic Neuro"
+      ],
+      "sample_count": 3,
+      "created_at": "2026-10-08T06:42:41.398985+00:00",
+      "metrics": {
+        "loss": 0.2822,
+        "dice": 0.9223
+      },
+      "checkpoint_path": "C:\\fedmed_DSML_intern_grp20\\data\\checkpoints\\global_model_v2.pt",
+      "status": "Active"
+    },
+    {
+      "version": 1,
+      "round": 1,
+      "strategy": "FedAvg",
+      "participating_hospitals": [
+        "Mayo Clinic Neuro"
+      ],
+      "sample_count": 3,
+      "created_at": "2026-10-08T04:18:35.782083+00:00",
+      "metrics": {
+        "loss": 0.2121,
+        "dice": 0.8958
+      },
+      "checkpoint_path": "C:\\fedmed_DSML_intern_grp20\\data\\checkpoints\\global_model_v1.pt",
+      "status": "Active"
+    }
+  ]
+}

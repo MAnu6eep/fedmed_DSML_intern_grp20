@@ -29,6 +29,8 @@ hospitals/*/data/*
 node_modules/
 dashboard/dist/
 .DS_Store
+.pytest_cache/
+~$*
 
 # FedMed TLS certificates and private keys
 certs/**/*.key

@@ -1,0 +1,15 @@
+node:
+  id: "meridian_brain_spine_institute"
+  name: "Meridian Brain & Spine Institute"
+  port: 8086
+  grpc_port: 9086
+server:
+  host: "127.0.0.1"
+  port: 8080
+data:
+  data_dir: "hospitals/meridian_brain_spine_institute/data"
+  batch_size: 2
+  local_epochs: 1
+privacy:
+  secagg_enabled: true
+  dp_enabled: false

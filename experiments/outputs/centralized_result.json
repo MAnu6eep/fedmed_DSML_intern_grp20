@@ -4,30 +4,27 @@
   "history": [
     {
       "round": 1,
-      "train_loss": 1.295771,
-      "global_loss": 1.097885,
-      "val_loss": 1.097885,
-      "val_dice": 0.037607,
-      "execution_time_seconds": 0.8851663999957964,
+      "train_loss": 1.28895,
+      "global_loss": 1.095047,
+      "val_loss": 1.095047,
+      "val_dice": 0.021961,
+      "execution_time_seconds": 6.742111900006421,
       "vram_peak_mb": 0.0,
       "failures": 0
     }
   ],
   "config": {
     "strategy": "centralized",
-    "num_rounds": 1,
+    "num_rounds": 3,
     "local_epochs": 1,
     "learning_rate": 0.0001,
-    "batch_size": 2,
+    "batch_size": 1,
     "proximal_mu": null,
     "dataset": {
       "name": "brats",
       "partition": "non_iid",
       "dirichlet_alpha": 0.5,
       "seed": 42
-    },
-    "dp": {
-      "enabled": false
     }
   },
   "partitions": {

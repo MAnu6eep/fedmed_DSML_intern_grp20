@@ -1,0 +1,15 @@
+node:
+  id: "hospital_d"
+  name: "University Research Hospital"
+  port: 8084
+  grpc_port: 9094
+server:
+  host: "127.0.0.1"
+  port: 8080
+data:
+  data_dir: "hospitals/hospital_d/data"
+  batch_size: 2
+  local_epochs: 1
+privacy:
+  secagg_enabled: true
+  dp_enabled: false

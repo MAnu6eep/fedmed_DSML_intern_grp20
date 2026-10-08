@@ -58,7 +58,7 @@ def test_evaluation_metric_range(unet_model, dummy_device):
     }
     mock_loader = [mock_batch]
 
-    val_loss, val_dice = evaluate_local(unet_model, mock_loader, loss_fn, dummy_device)
+    val_loss, val_dice, val_hd95 = evaluate_local(unet_model, mock_loader, loss_fn, dummy_device)
 
     assert isinstance(val_loss, float)
     assert isinstance(val_dice, float)

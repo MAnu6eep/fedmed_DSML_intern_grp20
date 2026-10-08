@@ -1,6 +1,6 @@
 {
   "experiment_name": "FedMed_Automated_Benchmark",
-  "export_timestamp": "2026-09-30T13:50:44.631980+00:00",
+  "export_timestamp": "2026-10-08T14:28:30.054682+00:00",
   "total_records": 1,
   "comparison_summary": [
     {
@@ -13,20 +13,20 @@
     },
     {
       "strategy_name": "FedAvg",
+      "count": 1,
+      "avg_dice_score": 0.85,
+      "best_dice_score": 0.85,
+      "avg_hd95": 2.8,
+      "avg_execution_time_seconds": 10.0,
+      "total_execution_time_seconds": 10.0,
+      "max_vram_peak_mb": 500.0
+    },
+    {
+      "strategy_name": "FedProx",
       "count": 0,
       "avg_dice_score": 0.0,
       "avg_hd95": 0.0,
       "avg_execution_time_seconds": 0.0,
-      "max_vram_peak_mb": 0.0
-    },
-    {
-      "strategy_name": "FedProx",
-      "count": 1,
-      "avg_dice_score": 0.10576716666666668,
-      "best_dice_score": 0.10576716666666668,
-      "avg_hd95": 0.0,
-      "avg_execution_time_seconds": 0.0,
-      "total_execution_time_seconds": 0.0,
       "max_vram_peak_mb": 0.0
     },
     {
@@ -40,20 +40,17 @@
   ],
   "detailed_results": [
     {
-      "strategy_name": "FedProx",
+      "strategy_name": "FedAvg",
       "round_or_epoch": 1,
-      "timestamp": "2026-09-30T13:50:44.616594+00:00",
-      "execution_time_seconds": 0.0,
-      "dice_score": 0.10576716666666668,
-      "hausdorff_distance_95": 0.0,
-      "iou_score": 0.0,
-      "vram_peak_mb": 0.0,
+      "timestamp": "2026-10-08T14:28:30.054090+00:00",
+      "execution_time_seconds": 10.0,
+      "dice_score": 0.85,
+      "hausdorff_distance_95": 2.8,
+      "iou_score": 0.75,
+      "vram_peak_mb": 500.0,
       "vram_current_mb": 0.0,
       "cuda_available": false,
-      "region_metrics": {
-        "train_loss": 1.1083054166666664,
-        "val_loss": 0.95742725
-      },
+      "region_metrics": {},
       "additional_metadata": {}
     }
   ]

@@ -21,6 +21,9 @@ from api.telemetry import (
     create_event,
     telemetry_manager,
 )
+from api.jobs import router as jobs_router
+from api.federation_routes import router as federation_router
+from api.state_manager import state_manager
 
 
 app = FastAPI(
@@ -31,6 +34,8 @@ app = FastAPI(
     ),
     version="1.1.0",
 )
+app.include_router(jobs_router)
+app.include_router(federation_router)
 os.makedirs("segmentation", exist_ok=True)
 app.mount("/segmentation", StaticFiles(directory="segmentation"), name="segmentation")
 HOSPITAL_NODES = {
@@ -45,6 +50,14 @@ HOSPITAL_NODES = {
     "hospital_c": (
         os.getenv("HOSPITAL_C_HOST", "hospital-c"),
         int(os.getenv("HOSPITAL_C_PORT", "8080")),
+    ),
+    "hospital_d": (
+        os.getenv("HOSPITAL_D_HOST", "hospital-d"),
+        int(os.getenv("HOSPITAL_D_PORT", "8080")),
+    ),
+    "hospital_e": (
+        os.getenv("HOSPITAL_E_HOST", "hospital-e"),
+        int(os.getenv("HOSPITAL_E_PORT", "8080")),
     ),
 }
 
@@ -114,48 +127,19 @@ def get_health_status() -> Dict[str, object]:
     }
 
 
-@app.get("/api/hospitals", response_model=list[Hospital])
-def get_hospitals():
-    """Returns current telemetry/status of all hospital nodes."""
-    return [
-        {
-            "hospital_id": "hospital_a",
-            "name": "General Hospital Neuro",
-            "status": "online",
-            "port": 8081,
-            "samples": 150,
-            "loss": 0.2841,
-            "dice": 0.912,
-        },
-        {
-            "hospital_id": "hospital_b",
-            "name": "St. Jude Imaging",
-            "status": "training",
-            "port": 8082,
-            "samples": 120,
-            "loss": 0.3152,
-            "dice": 0.887,
-        },
-        {
-            "hospital_id": "hospital_c",
-            "name": "Metro Health Oncology",
-            "status": "online",
-            "port": 8083,
-            "samples": 180,
-            "loss": 0.2617,
-            "dice": 0.924,
-        },
-    ]
-
-
 @app.get("/api/metrics")
 def get_metrics():
-    """Returns current global training metrics."""
+    """Returns current global training metrics from persistent state."""
+    gm = state_manager.get_global_model_info()
+    history = gm.get("history", [])
+    latest_metrics = history[0].get("metrics", {}) if history else {}
     return {
-        "round": 1,
-        "loss": 0.286,
-        "dice": 0.908,
-        "active_strategy": "FedAvg",
+        "round": gm.get("federation_round", 0),
+        "loss": latest_metrics.get("loss", 0.0),
+        "dice": latest_metrics.get("dice", 0.0),
+        "status": gm.get("status", "FRESH"),
+        "active_strategy": gm.get("strategy", "FedAvg"),
+        "last_updated": gm.get("last_updated"),
     }
 
 class SegmentationSlice(BaseModel):
@@ -425,3 +409,36 @@ async def test_metrics_event():
     await telemetry_manager.broadcast(event)
 
     return event
+
+import subprocess
+from pydantic import BaseModel
+
+class DockerControlRequest(BaseModel):
+    hospital_id: str
+
+@app.get('/api/docker/status')
+def get_docker_status():
+    try:
+        result = subprocess.run(['docker-compose', 'ps', '--format', 'json'], capture_output=True, text=True)
+        return {'status': 'ok', 'raw': result.stdout}
+    except Exception as e:
+        return {'status': 'error', 'error': str(e)}
+
+@app.post('/api/docker/start')
+def start_docker_hospital(req: DockerControlRequest):
+    try:
+        profile = req.hospital_id.replace('_', '-')
+        subprocess.Popen(['docker-compose', '--profile', profile, 'up', '-d'])
+        return {'status': 'starting', 'hospital': req.hospital_id}
+    except Exception as e:
+        return {'status': 'error', 'error': str(e)}
+
+@app.post('/api/docker/stop')
+def stop_docker_hospital(req: DockerControlRequest):
+    try:
+        profile = req.hospital_id.replace('_', '-')
+        subprocess.Popen(['docker-compose', '--profile', profile, 'stop'])
+        return {'status': 'stopping', 'hospital': req.hospital_id}
+    except Exception as e:
+        return {'status': 'error', 'error': str(e)}
+

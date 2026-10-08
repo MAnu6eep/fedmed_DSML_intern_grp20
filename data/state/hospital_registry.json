@@ -1,0 +1,248 @@
+{
+  "hosp-618": {
+    "hospital_id": "hosp-618",
+    "name": "Apollo Ridge Medical Center",
+    "type": "remote",
+    "host": "192.168.1.269",
+    "port": 8091,
+    "grpc_port": 9091,
+    "endpoint": "http://192.168.1.269:8091",
+    "auth_token": "tok_6b5a2a31e529",
+    "registration_status": "REGISTERED",
+    "connection_status": "WAITING_FOR_CONNECTION",
+    "approval_status": "APPROVED",
+    "participation_status": "READY",
+    "model_status": "NOT_INITIALIZED",
+    "sample_count": 0,
+    "last_heartbeat": null,
+    "current_round": 0,
+    "data_dir": null,
+    "container_id": null,
+    "registered_at": "2026-10-08T08:42:23.675409+00:00",
+    "metadata": {}
+  },
+  "hosp-619": {
+    "hospital_id": "hosp-619",
+    "name": "Gangamma Multispeciality Hospital",
+    "type": "remote",
+    "host": "192.168.1.122",
+    "port": 8092,
+    "grpc_port": 9092,
+    "endpoint": "http://192.168.1.122:8092",
+    "auth_token": "tok_f4f081f5e238",
+    "registration_status": "REGISTERED",
+    "connection_status": "WAITING_FOR_CONNECTION",
+    "approval_status": "REJECTED",
+    "participation_status": "IDLE",
+    "model_status": "NOT_INITIALIZED",
+    "sample_count": 0,
+    "last_heartbeat": null,
+    "current_round": 0,
+    "data_dir": null,
+    "container_id": null,
+    "registered_at": "2026-10-08T08:44:48.635553+00:00",
+    "metadata": {}
+  },
+  "hosp-856": {
+    "hospital_id": "hosp-856",
+    "name": "NovaCare Institute of Neurosciences",
+    "type": "remote",
+    "host": "127.0.0.138",
+    "port": 8041,
+    "grpc_port": 9041,
+    "endpoint": "http://127.0.0.138:8041",
+    "auth_token": "tok_4897bfd09840",
+    "registration_status": "REGISTERED",
+    "connection_status": "WAITING_FOR_CONNECTION",
+    "approval_status": "APPROVED",
+    "participation_status": "READY",
+    "model_status": "NOT_INITIALIZED",
+    "sample_count": 0,
+    "last_heartbeat": null,
+    "current_round": 0,
+    "data_dir": null,
+    "container_id": null,
+    "registered_at": "2026-10-08T08:47:04.781540+00:00",
+    "metadata": {}
+  },
+  "asteria_institute_of_medical_sciences": {
+    "hospital_id": "asteria_institute_of_medical_sciences",
+    "name": "Asteria Institute of Medical Sciences",
+    "type": "docker",
+    "host": "127.0.0.1",
+    "port": 8084,
+    "grpc_port": 9084,
+    "endpoint": "http://127.0.0.1:8084",
+    "auth_token": "tok_e5cf71d74206",
+    "registration_status": "REGISTERED",
+    "connection_status": "CONNECTED",
+    "approval_status": "APPROVED",
+    "participation_status": "PARTICIPATING",
+    "model_status": "SUBMITTED",
+    "sample_count": 3,
+    "last_heartbeat": "2026-10-08T13:18:45.806609+00:00",
+    "current_round": 7,
+    "data_dir": "C:\\fedmed_DSML_intern_grp20\\hospitals\\asteria_institute_of_medical_sciences\\data",
+    "container_id": "b91f2378cb1f",
+    "registered_at": "2026-10-08T09:27:35.343614+00:00",
+    "metadata": {
+      "simulated": true,
+      "data_mode": "demo"
+    },
+    "current_loss": 0.6903,
+    "current_dice": 0.4814,
+    "training_metrics": [
+      {
+        "epoch": 1,
+        "train_loss": 0.7386,
+        "val_loss": 0.7014,
+        "dice": 0.4104,
+        "elapsed_seconds": 0.89
+      },
+      {
+        "epoch": 2,
+        "train_loss": 0.7315,
+        "val_loss": 0.6964,
+        "dice": 0.4272,
+        "elapsed_seconds": 1.1
+      },
+      {
+        "epoch": 3,
+        "train_loss": 0.7233,
+        "val_loss": 0.6938,
+        "dice": 0.4478,
+        "elapsed_seconds": 1.29
+      },
+      {
+        "epoch": 4,
+        "train_loss": 0.7104,
+        "val_loss": 0.6901,
+        "dice": 0.4687,
+        "elapsed_seconds": 1.49
+      },
+      {
+        "epoch": 5,
+        "train_loss": 0.7008,
+        "val_loss": 0.6903,
+        "dice": 0.4814,
+        "elapsed_seconds": 1.68
+      }
+    ],
+    "training_duration": 1.74
+  },
+  "crescent_neurocare_hospital": {
+    "hospital_id": "crescent_neurocare_hospital",
+    "name": "Crescent NeuroCare Hospital",
+    "type": "docker",
+    "host": "127.0.0.1",
+    "port": 8085,
+    "grpc_port": 9085,
+    "endpoint": "http://127.0.0.1:8085",
+    "auth_token": "tok_50a711bb2fa4",
+    "registration_status": "REGISTERED",
+    "connection_status": "CONNECTED",
+    "approval_status": "APPROVED",
+    "participation_status": "PARTICIPATING",
+    "model_status": "SUBMITTED",
+    "sample_count": 3,
+    "last_heartbeat": "2026-10-08T13:18:58.466838+00:00",
+    "current_round": 7,
+    "data_dir": "C:\\fedmed_DSML_intern_grp20\\hospitals\\crescent_neurocare_hospital\\data",
+    "container_id": "5f2236429ee7",
+    "registered_at": "2026-10-08T09:28:07.432340+00:00",
+    "metadata": {
+      "simulated": true,
+      "data_mode": "demo"
+    },
+    "current_loss": 0.6868,
+    "current_dice": 0.5328,
+    "training_metrics": [
+      {
+        "epoch": 1,
+        "train_loss": 0.7151,
+        "val_loss": 0.6883,
+        "dice": 0.4828,
+        "elapsed_seconds": 0.43
+      },
+      {
+        "epoch": 2,
+        "train_loss": 0.7038,
+        "val_loss": 0.6871,
+        "dice": 0.4951,
+        "elapsed_seconds": 0.63
+      },
+      {
+        "epoch": 3,
+        "train_loss": 0.6986,
+        "val_loss": 0.6971,
+        "dice": 0.4961,
+        "elapsed_seconds": 0.83
+      },
+      {
+        "epoch": 4,
+        "train_loss": 0.6908,
+        "val_loss": 0.7053,
+        "dice": 0.5048,
+        "elapsed_seconds": 1.03
+      },
+      {
+        "epoch": 5,
+        "train_loss": 0.69,
+        "val_loss": 0.6868,
+        "dice": 0.5328,
+        "elapsed_seconds": 1.23
+      }
+    ],
+    "training_duration": 1.26
+  },
+  "meridian_brain_spine_institute": {
+    "hospital_id": "meridian_brain_spine_institute",
+    "name": "Meridian Brain & Spine Institute",
+    "type": "docker",
+    "host": "127.0.0.1",
+    "port": 8086,
+    "grpc_port": 9086,
+    "endpoint": "http://127.0.0.1:8086",
+    "auth_token": "tok_38a96d7eebe0",
+    "registration_status": "REGISTERED",
+    "connection_status": "WAITING_FOR_CONNECTION",
+    "approval_status": "PENDING",
+    "participation_status": "IDLE",
+    "model_status": "NOT_INITIALIZED",
+    "sample_count": 0,
+    "last_heartbeat": null,
+    "current_round": 0,
+    "data_dir": null,
+    "container_id": "da96f5bfef53",
+    "registered_at": "2026-10-08T13:19:34.204062+00:00",
+    "metadata": {
+      "simulated": true,
+      "data_mode": "demo"
+    }
+  },
+  "zenith_hospital": {
+    "hospital_id": "zenith_hospital",
+    "name": "Zenith Hospital",
+    "type": "docker",
+    "host": "127.0.0.1",
+    "port": 8087,
+    "grpc_port": 9087,
+    "endpoint": "http://127.0.0.1:8087",
+    "auth_token": "tok_cab54b8178b0",
+    "registration_status": "REGISTERED",
+    "connection_status": "WAITING_FOR_CONNECTION",
+    "approval_status": "PENDING",
+    "participation_status": "IDLE",
+    "model_status": "NOT_INITIALIZED",
+    "sample_count": 0,
+    "last_heartbeat": null,
+    "current_round": 0,
+    "data_dir": null,
+    "container_id": "364356b4a882",
+    "registered_at": "2026-10-08T13:20:06.951153+00:00",
+    "metadata": {
+      "simulated": true,
+      "data_mode": "demo"
+    }
+  }
+}
