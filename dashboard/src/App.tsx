@@ -1,813 +1,307 @@
-import React, { useEffect, useState } from "react";
+import React, { useState, useEffect } from "react";
+import { Sidebar } from "./components/layout/Sidebar";
+import { CentralDashboard } from "./views/CentralDashboard";
+import { HospitalRegistry } from "./views/HospitalRegistry";
+import { SimulateRemoteHospital } from "./views/SimulateRemoteHospital";
+import { HospitalSideUI } from "./views/HospitalSideUI";
+import { FederationOfModels } from "./views/FederationOfModels";
+import { GlobalModelRegistry } from "./views/GlobalModelRegistry";
+import { HospitalActivity } from "./views/HospitalActivity";
+import { TestingAndExperiments } from "./views/TestingAndExperiments";
+import { AboutProject } from "./views/AboutProject";
+import { AlertCircle, RefreshCw, X, Play, ShieldCheck } from "lucide-react";
 
-import { Sidebar } from "./components/Sidebar";
-import { Header } from "./components/Header";
-import { HospitalNodeCard } from "./components/HospitalNodeCard";
-import { MetricsChart } from "./components/MetricsChart";
-import SegmentationViewer from "./components/SegmentationViewer";
-import type { SegmentationSlice } from "./types/segmentation";
-import type { FederationMetricPoint } from "./types/metrics";
-import { useHospitalStore } from "./store/hospitalStore";
-import { TelemetryClient } from "./api/telemetry";
-import { useTelemetryStore } from "./store/telemetryStore";
+export type ViewState = 
+  | "dashboard" 
+  | "registry" 
+  | "simulate_remote" 
+  | "hospital_side" 
+  | "federation" 
+  | "model_registry" 
+  | "activity" 
+  | "testing_experiments"
+  | "about";
 
-import type { Hospital } from "./api/client";
-import type {
-  FederationEventType,
-  FederationTelemetryEvent,
-} from "./types/federationTelemetry";
-
-interface LocalMetric {
-  loss: number;
-  dice: number;
-}
-
-/**
- * Mock federation metrics
- * Used only for the chart foundation.
- * Later this data can be replaced with
- * live WebSocket telemetry.
- */
 export const App: React.FC = () => {
-  const hospitals = useHospitalStore((state) => state.hospitals);
-  const fetchHospitals = useHospitalStore(
-    (state) => state.fetchHospitals
-  );
-  const updateHospitalStatus = useHospitalStore(
-    (state) => state.updateHospitalStatus
-  );
+  const [currentView, setCurrentView] = useState<ViewState>("dashboard");
+  const [selectedHospital, setSelectedHospital] = useState<string | null>(null);
+  const [executionMode, setExecutionMode] = useState<"standby" | "docker">("standby");
 
-  const addEvent = useTelemetryStore((state) => state.addEvent);
-  const setConnected = useTelemetryStore(
-    (state) => state.setConnected
-  );
+  // Docker entry check modal state
+  const [showDockerModal, setShowDockerModal] = useState(false);
+  const [dockerModalLoading, setDockerModalLoading] = useState(false);
+  const [dockerModalError, setDockerModalError] = useState<string | null>(null);
 
-  const currentRound = useTelemetryStore(
-    (state) => state.currentRound
-  );
+  // Sync execution mode from backend
+  useEffect(() => {
+    fetch("http://127.0.0.1:8000/api/execution-mode")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.mode === "docker" || data.mode === "standby") {
+          setExecutionMode(data.mode);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
-  const trainingProgress = useTelemetryStore(
-    (state) => state.trainingProgress
-  );
-
-  const globalLoss = useTelemetryStore(
-    (state) => state.globalLoss
-  );
-
-  const globalDice = useTelemetryStore(
-    (state) => state.globalDice
-  );
-
-  const participants = useTelemetryStore(
-    (state) => state.participants
-  );
-
-  const totalClients = useTelemetryStore(
-    (state) => state.totalClients
-  );
-
-  const aggregationActive = useTelemetryStore(
-    (state) => state.aggregationActive
-  );
-
-  const aggregationDuration = useTelemetryStore(
-    (state) => state.aggregationDuration
-  );
-
-  const convergence = useTelemetryStore(
-    (state) => state.convergence
-  );
-
-  const events = useTelemetryStore((state) => state.events);
-
-  const connected = useTelemetryStore(
-    (state) => state.connected
-  );
-
-  /**
-   * Live local hospital metrics received
-   * from WebSocket telemetry.
-   *
-   * hospitalStore values are used as fallback.
-   */
-  const [localMetrics, setLocalMetrics] = useState<
-    Record<string, LocalMetric>
-  >({});
-
-  const [metrics, setMetrics] =
-    useState<FederationMetricPoint[]>([]);
-
-  const [segmentationSlices, setSegmentationSlices] =
-    useState<SegmentationSlice[]>([]);
-
-  const [segmentationLoading, setSegmentationLoading] =
-    useState(true);
-
-  const [segmentationError, setSegmentationError] =
-    useState<string | null>(null);
-
-  const latestMetric =
-    metrics.length > 0
-      ? metrics[metrics.length - 1]
-      : undefined;
-
-  /**
-   * Map federation events to hospital status.
-   */
-  const statusByEvent: Partial<
-    Record<FederationEventType, Hospital["status"]>
-  > = {
-    client_connected: "online",
-    client_disconnected: "offline",
-    training_started: "training",
-    training_completed: "online",
+  // Entry check for Simulate Remote Hospital
+  const handleNavigate = async (view: ViewState) => {
+    if (view === "simulate_remote") {
+      try {
+        const res = await fetch("http://127.0.0.1:8000/api/docker/status");
+        const data = await res.json();
+        if (data.docker_running) {
+          // Case A: Docker is running -> continue to simulation screen
+          setExecutionMode("docker");
+          fetch("http://127.0.0.1:8000/api/execution-mode", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ mode: "docker" }),
+          }).catch(() => {});
+          setCurrentView("simulate_remote");
+        } else {
+          // Case B: Docker is NOT running -> show modal BEFORE entering
+          setDockerModalError(null);
+          setShowDockerModal(true);
+        }
+      } catch {
+        setDockerModalError(null);
+        setShowDockerModal(true);
+      }
+    } else {
+      setCurrentView(view);
+    }
   };
 
-  /**
-   * Initial hospital data fetch.
-   */
-  useEffect(() => {
-    fetchHospitals();
-  }, [fetchHospitals]);
-
-  /**
-   * Load the latest federation metrics from FastAPI.
-   * WebSocket telemetry will append/update live rounds afterwards.
-   */
-  useEffect(() => {
-    const loadMetrics = async () => {
-      try {
-        const response = await fetch(
-          "http://127.0.0.1:8000/api/metrics"
+  // Modal Action 1: Start Docker Simulation
+  const handleStartDockerSimulation = async () => {
+    setDockerModalLoading(true);
+    setDockerModalError(null);
+    try {
+      const res = await fetch("http://127.0.0.1:8000/api/docker/start-simulation", {
+        method: "POST",
+      });
+      if (res.ok) {
+        setExecutionMode("docker");
+        setShowDockerModal(false);
+        setCurrentView("simulate_remote");
+      } else {
+        const err = await res.json();
+        setDockerModalError(
+          err.detail || "Docker Desktop is currently not running. Please start Docker Desktop on your PC and click Retry."
         );
-
-        if (!response.ok) {
-          throw new Error(`Metrics API returned ${response.status}`);
-        }
-
-        const data = await response.json();
-
-        setMetrics([
-          {
-            round: Number(data.round ?? 0),
-            timestamp: new Date().toISOString(),
-            trainingLoss:
-              typeof data.training_loss === "number"
-                ? data.training_loss
-                : typeof data.loss === "number"
-                  ? data.loss
-                  : undefined,
-            validationLoss:
-              typeof data.validation_loss === "number"
-                ? data.validation_loss
-                : undefined,
-            diceScore:
-              typeof data.dice === "number" ? data.dice : undefined,
-          },
-        ]);
-      } catch (error) {
-        console.error("Failed to load federation metrics:", error);
       }
-    };
+    } catch (e: any) {
+      setDockerModalError(
+        e.message || "Failed to reach backend to start Docker. Ensure Docker Desktop is active."
+      );
+    } finally {
+      setDockerModalLoading(false);
+    }
+  };
 
-    loadMetrics();
-  }, []);
+  // Modal Action 2: Continue in Standby Mode
+  const handleContinueInStandby = () => {
+    setExecutionMode("standby");
+    fetch("http://127.0.0.1:8000/api/execution-mode", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mode: "standby" }),
+    }).catch(() => {});
+    setShowDockerModal(false);
+    setDockerModalError(null);
+    setCurrentView("registry"); // Return to native standby hospital-training workflow
+  };
 
-  /**
-   * Load MRI + Ground Truth + Prediction data
-   * from the FastAPI segmentation endpoint.
-   */
-  useEffect(() => {
-    const loadSegmentation = async () => {
-      try {
-        setSegmentationLoading(true);
-        setSegmentationError(null);
-
-        const response = await fetch(
-          "http://127.0.0.1:8000/api/segmentation"
+  const renderView = () => {
+    switch (currentView) {
+      case "dashboard":
+        return <CentralDashboard onNavigate={handleNavigate} />;
+      case "registry":
+        return (
+          <HospitalRegistry
+            onOpenHospital={(id) => {
+              setSelectedHospital(id);
+              setCurrentView("hospital_side");
+            }}
+            onNavigateToSimulate={() => handleNavigate("simulate_remote")}
+          />
         );
-
-        if (!response.ok) {
-          throw new Error(`Segmentation API returned ${response.status}`);
-        }
-
-        const data = await response.json();
-
-        if (!Array.isArray(data.slices)) {
-          throw new Error("Invalid segmentation response: slices missing");
-        }
-
-        const slices: SegmentationSlice[] = data.slices.map(
-          (slice: {
-            index: number;
-            mri: string;
-            ground_truth?: string | null;
-            prediction?: string | null;
-          }) => ({
-            sliceIndex: slice.index,
-            mriSlice: slice.mri,
-            groundTruthMask: slice.ground_truth ?? "",
-            predictedMask: slice.prediction ?? "",
-          })
+      case "simulate_remote":
+        return (
+          <SimulateRemoteHospital
+            onOpenHospital={(id) => {
+              setSelectedHospital(id);
+              setCurrentView("hospital_side");
+            }}
+            onSwitchToStandby={handleContinueInStandby}
+          />
         );
-
-        setSegmentationSlices(slices);
-      } catch (error) {
-        setSegmentationError(
-          error instanceof Error
-            ? error.message
-            : "Failed to load segmentation data"
+      case "hospital_side":
+        return (
+          <HospitalSideUI
+            hospitalId={selectedHospital}
+            onBack={() => setCurrentView("registry")}
+          />
         );
-        setSegmentationSlices([]);
-      } finally {
-        setSegmentationLoading(false);
-      }
-    };
-
-    loadSegmentation();
-  }, []);
-
-  /**
-   * WebSocket telemetry connection.
-   */
-  useEffect(() => {
-    const telemetryClient = new TelemetryClient();
-
-    telemetryClient.connect(
-      (event: FederationTelemetryEvent) => {
-        console.log("Telemetry event:", event);
-
-        // Store event for history/review.
-        addEvent(event);
-
-        // Update hospital connection/training state.
-        if (event.hospital_id) {
-          const nextStatus =
-            statusByEvent[event.event_type];
-
-          if (nextStatus) {
-            updateHospitalStatus(
-              event.hospital_id,
-              nextStatus
-            );
-          }
-        }
-
-        const payload = event.payload;
-
-        const trainingLoss = payload.training_loss;
-        const validationLoss = payload.validation_loss;
-        const diceScore = payload.dice;
-        const communicationPayloadSize =
-          typeof payload.communication_payload_size === "number"
-            ? payload.communication_payload_size
-            : undefined;
-
-        const roundDuration =
-          typeof payload.round_duration === "number"
-            ? payload.round_duration
-            : typeof payload.duration_seconds === "number"
-              ? payload.duration_seconds
-              : typeof payload.duration_ms === "number"
-                ? payload.duration_ms / 1000
-                : undefined;
-
-        const hasMetrics =
-          typeof trainingLoss === "number" ||
-          typeof validationLoss === "number" ||
-          typeof diceScore === "number" ||
-          typeof communicationPayloadSize === "number" ||
-          typeof roundDuration === "number";
-
-        if (hasMetrics) {
-          setMetrics((previous) => {
-            const existingIndex = previous.findIndex(
-              (metric) => metric.round === event.round
-            );
-
-            const newPoint: FederationMetricPoint = {
-              round: event.round,
-              timestamp: event.timestamp,
-              ...(typeof trainingLoss === "number"
-                ? { trainingLoss }
-                : {}),
-              ...(typeof validationLoss === "number"
-                ? { validationLoss }
-                : {}),
-              ...(typeof diceScore === "number"
-                ? { diceScore }
-                : {}),
-              ...(typeof communicationPayloadSize === "number"
-                ? { communicationPayloadSize }
-                : {}),
-              ...(typeof roundDuration === "number"
-                ? { roundDuration }
-                : {}),
-            };
-
-            if (existingIndex >= 0) {
-              const updated = [...previous];
-
-              updated[existingIndex] = {
-                ...updated[existingIndex],
-                ...newPoint,
-              };
-
-              return updated;
-            }
-
-            return [...previous, newPoint].sort(
-              (a, b) => a.round - b.round
-            );
-          });
-        }
-
-        /**
-         * Update local hospital metrics
-         * from live telemetry.
-         */
-        if (
-          event.hospital_id &&
-          (event.event_type === "training_completed" ||
-            event.event_type === "training_started")
-        ) {
-          const loss = event.payload.loss;
-          const dice = event.payload.dice;
-
-          if (
-            typeof loss === "number" ||
-            typeof dice === "number"
-          ) {
-            setLocalMetrics((previous) => {
-              const existing =
-                previous[event.hospital_id!] ?? {
-                  loss: 0,
-                  dice: 0,
-                };
-
-              return {
-                ...previous,
-
-                [event.hospital_id!]: {
-                  loss:
-                    typeof loss === "number"
-                      ? loss
-                      : existing.loss,
-
-                  dice:
-                    typeof dice === "number"
-                      ? dice
-                      : existing.dice,
-                },
-              };
-            });
-          }
-        }
-      },
-
-      // WebSocket connected
-      () => {
-        setConnected(true);
-      },
-
-      // WebSocket error
-      () => {
-        setConnected(false);
-      },
-
-      // WebSocket closed
-      () => {
-        setConnected(false);
-      }
-    );
-
-    // Cleanup WebSocket when component unmounts.
-    return () => {
-      telemetryClient.disconnect();
-      setConnected(false);
-    };
-  }, [
-    addEvent,
-    setConnected,
-    updateHospitalStatus,
-  ]);
+      case "federation":
+        return <FederationOfModels />;
+      case "model_registry":
+        return <GlobalModelRegistry />;
+      case "activity":
+        return <HospitalActivity />;
+      case "testing_experiments":
+        return <TestingAndExperiments />;
+      case "about":
+        return <AboutProject onBackToDashboard={() => setCurrentView("dashboard")} />;
+      default:
+        return <CentralDashboard onNavigate={handleNavigate} />;
+    }
+  };
 
   return (
-    <div className="flex min-h-screen bg-slate-950 text-slate-100">
-      {/* SIDEBAR */}
-      <Sidebar />
+    <div className="flex h-screen bg-navy-900 text-beige-100 font-sans overflow-hidden">
+      {currentView !== "hospital_side" && (
+        <Sidebar 
+          currentView={currentView} 
+          executionMode={executionMode}
+          onViewChange={handleNavigate} 
+        />
+      )}
 
-      <div className="flex-1 flex flex-col">
-        {/* HEADER */}
-        <Header />
-
-        <main className="p-8 space-y-6 flex-1 overflow-y-auto">
-          {/* PAGE HEADER */}
-          <div>
-            <h2 className="text-xl font-semibold text-white">
-              Federated Hospital Nodes
-            </h2>
-
-            <p className="text-sm text-slate-400">
-              Live federated training and convergence telemetry
-            </p>
-          </div>
-
-          {/* GLOBAL METRICS */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            {/* ROUND */}
-            <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
-              <p className="text-sm text-slate-400">
-                Global FL Round
-              </p>
-
-              <p className="text-3xl font-bold text-white mt-2">
-                Round {currentRound}
-              </p>
-
-              <p className="text-xs text-slate-500 mt-2">
-                Current federated round
-              </p>
-            </div>
-
-            {/* GLOBAL LOSS */}
-            <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
-              <p className="text-sm text-slate-400">
-                Global Loss
-              </p>
-
-              <p className="text-3xl font-bold text-white mt-2">
-                {globalLoss > 0
-                  ? globalLoss.toFixed(4)
-                  : "--"}
-              </p>
-
-              <p className="text-xs text-slate-500 mt-2">
-                Global model loss
-              </p>
-            </div>
-
-            {/* GLOBAL DICE */}
-            <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
-              <p className="text-sm text-slate-400">
-                Global Dice
-              </p>
-
-              <p className="text-3xl font-bold text-white mt-2">
-                {globalDice > 0
-                  ? globalDice.toFixed(4)
-                  : "--"}
-              </p>
-
-              <p className="text-xs text-slate-500 mt-2">
-                Global segmentation score
-              </p>
-            </div>
-
-            {/* PARTICIPATION */}
-            <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
-              <p className="text-sm text-slate-400">
-                Client Participation
-              </p>
-
-              <p className="text-3xl font-bold text-white mt-2">
-                {participants}/{totalClients}
-              </p>
-
-              <p className="text-xs text-slate-500 mt-2">
-                Clients participating this round
-              </p>
-            </div>
-          </div>
-
-          {/* TRAINING + AGGREGATION */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* TRAINING */}
-            <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
-              <p className="text-sm text-slate-400">
-                Training Progress
-              </p>
-
-              <p className="text-3xl font-bold text-white mt-2">
-                {trainingProgress}%
-              </p>
-
-              <div className="w-full bg-slate-800 rounded-full h-2 mt-4">
-                <div
-                  className="bg-blue-500 h-2 rounded-full transition-all duration-500"
-                  style={{
-                    width: `${trainingProgress}%`,
-                  }}
-                />
-              </div>
-            </div>
-
-            {/* AGGREGATION */}
-            <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
-              <p className="text-sm text-slate-400">
-                Aggregation Status
-              </p>
-
-              <div className="flex items-center gap-3 mt-3">
-                <div
-                  className={`h-3 w-3 rounded-full ${
-                    aggregationActive
-                      ? "bg-yellow-500"
-                      : "bg-green-500"
-                  }`}
-                />
-
-                <p className="text-lg font-semibold text-white">
-                  {aggregationActive
-                    ? "Aggregation Running"
-                    : "Aggregation Complete"}
-                </p>
-              </div>
-
-              <p className="text-xs text-slate-500 mt-2">
-                {aggregationDuration > 0
-                  ? `Last aggregation: ${aggregationDuration.toFixed(
-                      2
-                    )}s`
-                  : "Waiting for aggregation telemetry"}
-              </p>
-            </div>
-
-            {/* CONNECTION */}
-            <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
-              <p className="text-sm text-slate-400">
-                Telemetry Connection
-              </p>
-
-              <div className="flex items-center gap-3 mt-3">
-                <div
-                  className={`h-3 w-3 rounded-full ${
-                    connected
-                      ? "bg-green-500"
-                      : "bg-red-500"
-                  }`}
-                />
-
-                <p className="text-lg font-semibold text-white">
-                  {connected
-                    ? "WebSocket Connected"
-                    : "Disconnected"}
-                </p>
-              </div>
-
-              <p className="text-xs text-slate-500 mt-2">
-                Real-time federation updates
-              </p>
-            </div>
-          </div>
-
-          {/* LIVE METRICS CHART */}
-          <MetricsChart data={metrics} />
-          {/* 2D SEGMENTATION VIEWER */}
-          {segmentationLoading ? (
-            <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
-              <p className="text-slate-400">
-                Loading MRI, Ground Truth and prediction...
-              </p>
-            </div>
-          ) : segmentationError ? (
-            <div className="bg-slate-900 border border-red-900 rounded-xl p-6">
-              <p className="text-red-400">
-                Segmentation error: {segmentationError}
-              </p>
-            </div>
-          ) : (
-            <SegmentationViewer slices={segmentationSlices} />
-          )}
-
-          {/* EXPERIMENT TELEMETRY SUMMARY */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* ROUND DURATION */}
-            <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
-              <p className="text-sm text-slate-400">
-                Round Duration
-              </p>
-
-              <p className="text-3xl font-bold text-white mt-2">
-                {typeof latestMetric?.roundDuration === "number"
-                  ? `${latestMetric.roundDuration.toFixed(2)}s`
-                  : "--"}
-              </p>
-
-              <p className="text-xs text-slate-500 mt-2">
-                Latest completed federation round
-              </p>
-            </div>
-
-            {/* COMMUNICATION PAYLOAD */}
-            <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
-              <p className="text-sm text-slate-400">
-                Communication Payload
-              </p>
-
-              <p className="text-3xl font-bold text-white mt-2">
-                {typeof latestMetric?.communicationPayloadSize === "number"
-                  ? `${latestMetric.communicationPayloadSize.toFixed(2)} MB`
-                  : "--"}
-              </p>
-
-              <p className="text-xs text-slate-500 mt-2">
-                Latest client update payload
-              </p>
-            </div>
-          </div>
-
-          {/* CONVERGENCE */}
-          <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
-            <div className="mb-6">
-              <h3 className="text-lg font-semibold text-white">
-                Federated Model Convergence
-              </h3>
-
-              <p className="text-sm text-slate-400">
-                Global loss and Dice score across completed rounds
-              </p>
-            </div>
-
-            {convergence.length === 0 ? (
-              <div className="h-64 flex items-center justify-center">
-                <p className="text-sm text-slate-500">
-                  Waiting for convergence metrics...
-                </p>
-              </div>
-            ) : (
-              <div className="w-full h-72 flex items-end gap-4">
-                {convergence.map((metric) => (
-                  <div
-                    key={metric.round}
-                    className="flex-1 h-full flex flex-col justify-end"
-                  >
-                    <div className="flex items-end justify-center gap-2 h-full">
-                      {/* DICE */}
-                      <div
-                        className="w-5 bg-blue-500 rounded-t transition-all duration-500"
-                        style={{
-                          height: `${Math.min(
-                            metric.dice * 100,
-                            100
-                          )}%`,
-                        }}
-                        title={`Round ${metric.round} Dice: ${metric.dice}`}
-                      />
-
-                      {/* LOSS */}
-                      <div
-                        className="w-5 bg-red-500 rounded-t transition-all duration-500"
-                        style={{
-                          height: `${Math.min(
-                            metric.loss * 100,
-                            100
-                          )}%`,
-                        }}
-                        title={`Round ${metric.round} Loss: ${metric.loss}`}
-                      />
-                    </div>
-
-                    <p className="text-xs text-slate-500 text-center mt-2">
-                      R{metric.round}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            <div className="flex gap-6 mt-4 text-xs text-slate-400">
-              <div className="flex items-center gap-2">
-                <span className="h-2 w-2 bg-blue-500 rounded-full" />
-                Dice
-              </div>
-
-              <div className="flex items-center gap-2">
-                <span className="h-2 w-2 bg-red-500 rounded-full" />
-                Loss
-              </div>
-            </div>
-          </div>
-
-          {/* HOSPITAL NODES */}
-          <div>
-            <h3 className="text-lg font-semibold text-white mb-4">
-              Hospital Nodes
-            </h3>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {hospitals.map((hospital) => {
-                const liveMetrics =
-                  localMetrics[hospital.hospital_id];
-
-                const localLoss =
-                  liveMetrics?.loss ?? hospital.loss;
-
-                const localDice =
-                  liveMetrics?.dice ?? hospital.dice;
-
-                return (
-                  <HospitalNodeCard
-                    key={hospital.hospital_id}
-                    node={{
-                      id: hospital.hospital_id,
-                      name: hospital.name,
-                      host: "127.0.0.1",
-                      port: hospital.port,
-                      grpcPort: hospital.port,
-                      sampleCount: hospital.samples,
-                      status: hospital.status,
-                      currentRound: currentRound,
-
-                      // Live WebSocket metrics first,
-                      // HTTP metrics as fallback.
-                      localLoss,
-                      localDice,
-
-                      lastHeartbeat:
-                        new Date().toISOString(),
-
-                      isSecAggActive: true,
-                    }}
-                  />
-                );
-              })}
-            </div>
-          </div>
-
-          {/* LIVE ACTIVITY */}
-          <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h3 className="text-lg font-semibold text-white">
-                  Live Federation Activity
-                </h3>
-
-                <p className="text-sm text-slate-400">
-                  Real-time events from federation server
-                </p>
-              </div>
-
+      <main className="flex-1 flex flex-col overflow-y-auto bg-navy-900">
+        {/* Top Operational Status Header with Mode Indicator */}
+        {currentView !== "hospital_side" && (
+          <div className="bg-navy-950/70 border-b border-navy-800/80 px-8 py-2.5 flex items-center justify-between text-xs select-none">
+            <div className="flex items-center space-x-2">
+              <span className="text-slate-400 font-medium text-[11px] uppercase tracking-wider">
+                Execution Mode:
+              </span>
               <span
-                className={`px-3 py-1 rounded-full text-xs font-medium ${
-                  connected
-                    ? "bg-green-500/10 text-green-400"
-                    : "bg-red-500/10 text-red-400"
+                className={`inline-flex items-center space-x-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
+                  executionMode === "docker"
+                    ? "bg-blue-500/20 text-blue-300 border border-blue-500/40"
+                    : "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40"
                 }`}
               >
-                {connected ? "LIVE" : "OFFLINE"}
+                <span
+                  className={`w-1.5 h-1.5 rounded-full ${
+                    executionMode === "docker" ? "bg-blue-400 animate-pulse" : "bg-emerald-400"
+                  }`}
+                />
+                <span>
+                  {executionMode === "docker"
+                    ? "Docker Remote Hospital Simulation"
+                    : "Standby / Native Mode"}
+                </span>
               </span>
             </div>
 
-            <div className="space-y-2">
-              {events.length === 0 ? (
-                <p className="text-sm text-slate-500">
-                  Waiting for federation events...
-                </p>
-              ) : (
-                events
-                  .slice()
-                  .reverse()
-                  .slice(0, 8)
-                  .map((event, index) => (
-                    <div
-                      key={`${event.timestamp}-${index}`}
-                      className="flex items-center justify-between bg-slate-950 rounded-lg px-4 py-3"
-                    >
-                      <div>
-                        <p className="text-sm text-slate-200">
-                          {event.event_type
-                            .replaceAll("_", " ")
-                            .replace(/\b\w/g, (char) =>
-                              char.toUpperCase()
-                            )}
-                        </p>
+            {/* Quick Switch to Standby button if in Docker mode */}
+            {executionMode === "docker" && (
+              <button
+                onClick={handleContinueInStandby}
+                className="text-xs text-slate-400 hover:text-emerald-300 flex items-center space-x-1 transition"
+                title="Switch back to native standby execution"
+              >
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Switch to Standby Mode</span>
+              </button>
+            )}
+          </div>
+        )}
 
-                        <p className="text-xs text-slate-500">
-                          {event.hospital_id
-                            ? event.hospital_id
-                            : "Federation Server"}
-                        </p>
-                      </div>
+        {renderView()}
+      </main>
 
-                      <div className="text-right">
-                        <p className="text-xs text-slate-400">
-                          Round {event.round}
-                        </p>
+      {/* Docker Desktop Check Modal (Case B) */}
+      {showDockerModal && (
+        <div className="fixed inset-0 z-50 bg-black/75 flex items-center justify-center p-4">
+          <div className="bg-navy-800 border border-navy-700 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-5">
+            {/* Modal Header */}
+            <div className="flex items-start justify-between">
+              <div className="flex items-start space-x-3">
+                <div className="p-2.5 bg-navy-900 rounded-xl border border-navy-700 text-amber-400 mt-0.5">
+                  <AlertCircle className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-white tracking-wide">
+                    Remote Hospital Simulation
+                  </h3>
+                  <p className="text-xs text-amber-300/90 font-medium mt-0.5">
+                    Docker Desktop is currently not running.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setShowDockerModal(false);
+                  setDockerModalError(null);
+                }}
+                className="text-slate-400 hover:text-white p-1"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
 
-                        <p className="text-xs text-slate-600">
-                          {new Date(
-                            event.timestamp
-                          ).toLocaleTimeString()}
-                        </p>
-                      </div>
-                    </div>
-                  ))
-              )}
+            {/* Informational Message */}
+            <div className="bg-navy-900/80 border border-navy-700/80 rounded-xl p-4 text-xs text-slate-300 leading-relaxed space-y-2">
+              <p>
+                FedMed can continue in <strong>Standby Mode</strong> without Docker, or you can start Docker to simulate remote hospitals using isolated containers.
+              </p>
+              <p className="text-[11px] text-slate-400 pt-1 border-t border-navy-800">
+                * Docker is <strong>optional</strong>. Standby Mode executes the entire native training and federation workflow directly on your local machine with minimal RAM usage.
+              </p>
+            </div>
+
+            {/* Error display if startup failed */}
+            {dockerModalError && (
+              <div className="bg-red-950/40 border border-red-500/50 p-3 rounded-lg text-xs text-red-200 space-y-1">
+                <p className="font-bold text-red-300">Docker Startup State:</p>
+                <p className="text-[11px] leading-relaxed">{dockerModalError}</p>
+              </div>
+            )}
+
+            {/* Action Buttons */}
+            <div className="space-y-2.5 pt-1">
+              <button
+                onClick={handleStartDockerSimulation}
+                disabled={dockerModalLoading}
+                className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-2.5 px-4 rounded-xl text-xs flex items-center justify-center space-x-2 transition shadow-sm"
+              >
+                {dockerModalLoading ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    <span>Starting Docker Infrastructure...</span>
+                  </>
+                ) : (
+                  <>
+                    <Play className="w-3.5 h-3.5 fill-current" />
+                    <span>Start Docker Simulation</span>
+                  </>
+                )}
+              </button>
+
+              <button
+                onClick={handleContinueInStandby}
+                className="w-full bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/40 font-bold py-2.5 px-4 rounded-xl text-xs flex items-center justify-center space-x-2 transition"
+              >
+                <span>Continue in Standby Mode</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setShowDockerModal(false);
+                  setDockerModalError(null);
+                }}
+                className="w-full bg-navy-900 hover:bg-navy-700 text-slate-400 hover:text-white font-medium py-2 rounded-xl text-xs transition border border-navy-700"
+              >
+                Cancel
+              </button>
             </div>
           </div>
-        </main>
-      </div>
+        </div>
+      )}
     </div>
   );
 };

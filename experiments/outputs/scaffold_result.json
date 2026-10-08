@@ -1,0 +1,71 @@
+{
+  "distribution": "Non-IID",
+  "strategy": "SCAFFOLD",
+  "settings": {
+    "num_clients": 3,
+    "num_rounds": 1,
+    "local_epochs": 1,
+    "learning_rate": 0.0001,
+    "batch_size": 2,
+    "proximal_mu": null,
+    "partition": "non_iid",
+    "dirichlet_alpha": 0.5,
+    "seed": 42
+  },
+  "history": [
+    {
+      "round": 1,
+      "train_loss": 1.1082139166666667,
+      "global_loss": 0.9574267499999999,
+      "val_loss": 0.9574267499999999,
+      "val_dice": 0.10567283333333333,
+      "parameter_delta": 0.0,
+      "participants": 3,
+      "failures": 0,
+      "scaffold": true,
+      "scaffold_clients": 3,
+      "scaffold_round": 1,
+      "execution_time_seconds": 281.4806,
+      "vram_peak_mb": 0.0,
+      "vram_current_mb": 0.0,
+      "cuda_available": false
+    }
+  ],
+  "config": {
+    "strategy": "scaffold",
+    "num_rounds": 1,
+    "local_epochs": 1,
+    "learning_rate": 0.0001,
+    "batch_size": 2,
+    "proximal_mu": null,
+    "dataset": {
+      "name": "brats",
+      "partition": "non_iid",
+      "dirichlet_alpha": 0.5,
+      "seed": 42
+    },
+    "dp": {
+      "enabled": false
+    }
+  },
+  "partitions": {
+    "client_1": [
+      "volume_07",
+      "volume_01",
+      "volume_02",
+      "volume_11",
+      "volume_03"
+    ],
+    "client_2": [
+      "volume_06",
+      "volume_08",
+      "volume_04"
+    ],
+    "client_3": [
+      "volume_05",
+      "volume_10",
+      "volume_00",
+      "volume_09"
+    ]
+  }
+}

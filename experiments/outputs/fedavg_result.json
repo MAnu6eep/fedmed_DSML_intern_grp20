@@ -3,10 +3,10 @@
   "strategy": "FedAvg",
   "settings": {
     "num_clients": 3,
-    "num_rounds": 3,
+    "num_rounds": 1,
     "local_epochs": 1,
     "learning_rate": 0.0001,
-    "batch_size": 1,
+    "batch_size": 2,
     "proximal_mu": null,
     "partition": "non_iid",
     "dirichlet_alpha": 0.5,
@@ -15,56 +15,37 @@
   "history": [
     {
       "round": 1,
-      "train_loss": 1.101687918106715,
-      "global_loss": 0.9560504605372747,
-      "val_loss": 0.9560504605372747,
-      "val_dice": 0.09731642963985603,
+      "train_loss": 1.1082139166666667,
+      "global_loss": 0.9574267500000001,
+      "val_loss": 0.9574267500000001,
+      "val_dice": 0.10567283333333333,
       "parameter_delta": 0.0,
       "participants": 3,
       "failures": 0,
       "scaffold": false,
       "scaffold_clients": 0,
-      "scaffold_round": 0
-    },
-    {
-      "round": 2,
-      "train_loss": 1.0283599098523457,
-      "global_loss": 0.952984963854154,
-      "val_loss": 0.952984963854154,
-      "val_dice": 0.09433207660913467,
-      "parameter_delta": 7.379410491342601,
-      "participants": 3,
-      "failures": 0,
-      "scaffold": false,
-      "scaffold_clients": 0,
-      "scaffold_round": 0
-    },
-    {
-      "round": 3,
-      "train_loss": 0.9580716540416082,
-      "global_loss": 0.9499238083759943,
-      "val_loss": 0.9499238083759943,
-      "val_dice": 0.11938474886119366,
-      "parameter_delta": 4.693788606977244,
-      "participants": 3,
-      "failures": 0,
-      "scaffold": false,
-      "scaffold_clients": 0,
-      "scaffold_round": 0
+      "scaffold_round": 0,
+      "execution_time_seconds": 76.6592,
+      "vram_peak_mb": 0.0,
+      "vram_current_mb": 0.0,
+      "cuda_available": false
     }
   ],
   "config": {
     "strategy": "fedavg",
-    "num_rounds": 3,
+    "num_rounds": 1,
     "local_epochs": 1,
     "learning_rate": 0.0001,
-    "batch_size": 1,
+    "batch_size": 2,
     "proximal_mu": null,
     "dataset": {
       "name": "brats",
       "partition": "non_iid",
       "dirichlet_alpha": 0.5,
       "seed": 42
+    },
+    "dp": {
+      "enabled": false
     }
   },
   "partitions": {

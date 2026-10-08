@@ -1,0 +1,15 @@
+node:
+  id: "crescent_neurocare_hospital"
+  name: "Crescent NeuroCare Hospital"
+  port: 8085
+  grpc_port: 9085
+server:
+  host: "127.0.0.1"
+  port: 8080
+data:
+  data_dir: "hospitals/crescent_neurocare_hospital/data"
+  batch_size: 2
+  local_epochs: 1
+privacy:
+  secagg_enabled: true
+  dp_enabled: false

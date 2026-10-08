@@ -1,0 +1,15 @@
+node:
+  id: "asteria_institute_of_medical_sciences"
+  name: "Asteria Institute of Medical Sciences"
+  port: 8084
+  grpc_port: 9084
+server:
+  host: "127.0.0.1"
+  port: 8080
+data:
+  data_dir: "hospitals/asteria_institute_of_medical_sciences/data"
+  batch_size: 2
+  local_epochs: 1
+privacy:
+  secagg_enabled: true
+  dp_enabled: false

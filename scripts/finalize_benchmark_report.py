@@ -155,6 +155,15 @@ def generate_formatted_markdown_report(table: List[Dict[str, Any]]) -> str:
     return "\n".join(lines)
 
 
+def load_benchmark_data(results_file: Path) -> Dict[str, Any]:
+    """Load JSON benchmark results file."""
+    if not results_file.exists():
+        raise FileNotFoundError(f"Benchmark results file not found at: {results_file}")
+
+    with open(results_file, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
 def main() -> int:
     results_file = PROJECT_ROOT / "experiments" / "outputs" / "benchmark_framework_results.json"
     centralized_file = PROJECT_ROOT / "experiments" / "outputs" / "centralized" / "metrics.json"

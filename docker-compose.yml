@@ -1,10 +1,12 @@
 services:
 
   # ---------------------------------------------------------------------------
-  # Flower federation infrastructure
+  # Central Flower Federation Superlink Server
   # ---------------------------------------------------------------------------
   federation-server:
-    image: fedmed_dsml_intern_grp20-hospital-a:latest
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.node
     working_dir: /app
     command: >
       flower-superlink
@@ -35,10 +37,12 @@ services:
       start_period: 10s
 
   # ---------------------------------------------------------------------------
-  # Hospital A
+  # Hospital A (Isolated Node & Storage)
   # ---------------------------------------------------------------------------
   hospital-a:
-    image: fedmed_dsml_intern_grp20-hospital-a:latest
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.node
     environment:
       HOSPITAL_ID: hospital_a
       SUPERLINK_HOST: federation-server
@@ -48,16 +52,13 @@ services:
       python -m fedmed.nodes.node_manager &
       exec flower-supernode
       --insecure
-      --grpc-rere
       --superlink $${SUPERLINK_HOST}:$${SUPERLINK_PORT}
       "
     ports:
       - "8081:8080"
-      - "9091:9091"
     volumes:
-      - ./certs/ca/ca.crt:/app/certs/ca/ca.crt:ro
-      - ./certs/hospital_a:/app/certs/hospital_a:ro
-      - ./data:/app/data:ro
+      - ./hospitals/hospital_a/data:/app/hospitals/hospital_a/data:ro
+      - ./hospitals/hospital_a/config.yaml:/app/hospitals/hospital_a/config.yaml:ro
     networks:
       - fedmed-network
     depends_on:
@@ -65,10 +66,12 @@ services:
         condition: service_healthy
 
   # ---------------------------------------------------------------------------
-  # Hospital B
+  # Hospital B (Isolated Node & Storage)
   # ---------------------------------------------------------------------------
   hospital-b:
-    image: fedmed_dsml_intern_grp20-hospital-a:latest
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.node
     environment:
       HOSPITAL_ID: hospital_b
       SUPERLINK_HOST: federation-server
@@ -78,16 +81,13 @@ services:
       python -m fedmed.nodes.node_manager &
       exec flower-supernode
       --insecure
-      --grpc-rere
       --superlink $${SUPERLINK_HOST}:$${SUPERLINK_PORT}
       "
     ports:
       - "8082:8080"
-      - "9092:9092"
     volumes:
-      - ./certs/ca/ca.crt:/app/certs/ca/ca.crt:ro
-      - ./certs/hospital_b:/app/certs/hospital_b:ro
-      - ./data:/app/data:ro
+      - ./hospitals/hospital_b/data:/app/hospitals/hospital_b/data:ro
+      - ./hospitals/hospital_b/config.yaml:/app/hospitals/hospital_b/config.yaml:ro
     networks:
       - fedmed-network
     depends_on:
@@ -95,10 +95,12 @@ services:
         condition: service_healthy
 
   # ---------------------------------------------------------------------------
-  # Hospital C
+  # Hospital C (Isolated Node & Storage)
   # ---------------------------------------------------------------------------
   hospital-c:
-    image: fedmed_dsml_intern_grp20-hospital-a:latest
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.node
     environment:
       HOSPITAL_ID: hospital_c
       SUPERLINK_HOST: federation-server
@@ -108,16 +110,13 @@ services:
       python -m fedmed.nodes.node_manager &
       exec flower-supernode
       --insecure
-      --grpc-rere
       --superlink $${SUPERLINK_HOST}:$${SUPERLINK_PORT}
       "
     ports:
       - "8083:8080"
-      - "9093:9093"
     volumes:
-      - ./certs/ca/ca.crt:/app/certs/ca/ca.crt:ro
-      - ./certs/hospital_c:/app/certs/hospital_c:ro
-      - ./data:/app/data:ro
+      - ./hospitals/hospital_c/data:/app/hospitals/hospital_c/data:ro
+      - ./hospitals/hospital_c/config.yaml:/app/hospitals/hospital_c/config.yaml:ro
     networks:
       - fedmed-network
     depends_on:
@@ -125,13 +124,73 @@ services:
         condition: service_healthy
 
   # ---------------------------------------------------------------------------
-  # FastAPI backend
+  # Hospital D (Optional Scalable Node & Storage)
+  # ---------------------------------------------------------------------------
+  hospital-d:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.node
+    profiles: ["5-nodes"]
+    environment:
+      HOSPITAL_ID: hospital_d
+      SUPERLINK_HOST: federation-server
+      SUPERLINK_PORT: "9092"
+    command: >
+      sh -c "
+      python -m fedmed.nodes.node_manager &
+      exec flower-supernode
+      --insecure
+      --superlink $${SUPERLINK_HOST}:$${SUPERLINK_PORT}
+      "
+    ports:
+      - "8084:8080"
+    volumes:
+      - ./hospitals/hospital_d/data:/app/hospitals/hospital_d/data:ro
+      - ./hospitals/hospital_d/config.yaml:/app/hospitals/hospital_d/config.yaml:ro
+    networks:
+      - fedmed-network
+    depends_on:
+      federation-server:
+        condition: service_healthy
+
+  # ---------------------------------------------------------------------------
+  # Hospital E (Optional Scalable Node & Storage)
+  # ---------------------------------------------------------------------------
+  hospital-e:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.node
+    profiles: ["5-nodes"]
+    environment:
+      HOSPITAL_ID: hospital_e
+      SUPERLINK_HOST: federation-server
+      SUPERLINK_PORT: "9092"
+    command: >
+      sh -c "
+      python -m fedmed.nodes.node_manager &
+      exec flower-supernode
+      --insecure
+      --superlink $${SUPERLINK_HOST}:$${SUPERLINK_PORT}
+      "
+    ports:
+      - "8085:8080"
+    volumes:
+      - ./hospitals/hospital_e/data:/app/hospitals/hospital_e/data:ro
+      - ./hospitals/hospital_e/config.yaml:/app/hospitals/hospital_e/config.yaml:ro
+    networks:
+      - fedmed-network
+    depends_on:
+      federation-server:
+        condition: service_healthy
+
+  # ---------------------------------------------------------------------------
+  # FastAPI Telemetry Backend
   # ---------------------------------------------------------------------------
   fedmed-api:
-    image: python:3.11-slim
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.node
     working_dir: /app
-    volumes:
-      - ./api:/app/api
     environment:
       HOSPITAL_A_HOST: hospital-a
       HOSPITAL_A_PORT: 8080
@@ -139,9 +198,12 @@ services:
       HOSPITAL_B_PORT: 8080
       HOSPITAL_C_HOST: hospital-c
       HOSPITAL_C_PORT: 8080
+      HOSPITAL_D_HOST: hospital-d
+      HOSPITAL_D_PORT: 8080
+      HOSPITAL_E_HOST: hospital-e
+      HOSPITAL_E_PORT: 8080
     command: >
-      sh -c "pip install --no-cache-dir fastapi uvicorn pydantic websockets &&
-             uvicorn api.main:app --host 0.0.0.0 --port 8000"
+      uvicorn api.main:app --host 0.0.0.0 --port 8000
     ports:
       - "8000:8000"
     networks:
@@ -167,7 +229,7 @@ services:
       start_period: 10s
 
   # ---------------------------------------------------------------------------
-  # React / Vite dashboard
+  # React / Vite Dashboard
   # ---------------------------------------------------------------------------
   dashboard:
     image: node:22-alpine

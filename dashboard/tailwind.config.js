@@ -7,6 +7,14 @@ export default {
   theme: {
     extend: {
       colors: {
+        navy: {
+          900: "#010736",
+          800: "#0D1C42",
+          700: "#22396F",
+        },
+        beige: {
+          100: "#FCF1D0",
+        },
         medical: {
           50: "#f0fdfa",
           100: "#ccfbf1",

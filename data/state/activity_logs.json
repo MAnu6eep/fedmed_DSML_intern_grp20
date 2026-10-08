@@ -1,0 +1,1902 @@
+[
+  {
+    "id": "log_1791467529998_13945b",
+    "timestamp": "2026-10-08T13:52:09.998443+00:00",
+    "event_type": "EXECUTION_MODE_CHANGED",
+    "hospital_id": null,
+    "hospital_name": null,
+    "description": "Execution mode set to Docker Remote Hospital Simulation.",
+    "details": {
+      "mode": "docker"
+    }
+  },
+  {
+    "id": "log_1791465606952_f45ff2",
+    "timestamp": "2026-10-08T13:20:06.952779+00:00",
+    "event_type": "HOSPITAL_REGISTERED",
+    "hospital_id": "zenith_hospital",
+    "hospital_name": "Zenith Hospital",
+    "description": "Hospital 'Zenith Hospital' (zenith_hospital) was registered as docker.",
+    "details": {
+      "type": "docker",
+      "endpoint": "http://127.0.0.1:8087"
+    }
+  },
+  {
+    "id": "log_1791465574204_055407",
+    "timestamp": "2026-10-08T13:19:34.204642+00:00",
+    "event_type": "HOSPITAL_REGISTERED",
+    "hospital_id": "meridian_brain_spine_institute",
+    "hospital_name": "Meridian Brain & Spine Institute",
+    "description": "Hospital 'Meridian Brain & Spine Institute' (meridian_brain_spine_institute) was registered as docker.",
+    "details": {
+      "type": "docker",
+      "endpoint": "http://127.0.0.1:8086"
+    }
+  },
+  {
+    "id": "log_1791465538467_f0006b",
+    "timestamp": "2026-10-08T13:18:58.467940+00:00",
+    "event_type": "CONTAINER_STARTED",
+    "hospital_id": null,
+    "hospital_name": null,
+    "description": "Docker container '5f2236429ee7' started.",
+    "details": {
+      "container": "5f2236429ee7",
+      "hospital_id": "crescent_neurocare_hospital"
+    }
+  },
+  {
+    "id": "log_1791465525807_93d2b9",
+    "timestamp": "2026-10-08T13:18:45.808866+00:00",
+    "event_type": "CONTAINER_STARTED",
+    "hospital_id": null,
+    "hospital_name": null,
+    "description": "Docker container 'b91f2378cb1f' started.",
+    "details": {
+      "container": "b91f2378cb1f",
+      "hospital_id": "asteria_institute_of_medical_sciences"
+    }
+  },
+  {
+    "id": "log_1791453985418_04790a",
+    "timestamp": "2026-10-08T10:06:25.418809+00:00",
+    "event_type": "MODEL_SUBMITTED",
+    "hospital_id": "asteria_institute_of_medical_sciences",
+    "hospital_name": "Asteria Institute of Medical Sciences",
+    "description": "Permitted model weights update submitted by 'Asteria Institute of Medical Sciences'.",
+    "details": {
+      "update_id": "upd_1791453985_b5f9",
+      "loss": 0.6903,
+      "dice": 0.4814
+    }
+  },
+  {
+    "id": "log_1791453970703_c08e36",
+    "timestamp": "2026-10-08T10:06:10.703700+00:00",
+    "event_type": "MODEL_SUBMITTED",
+    "hospital_id": "crescent_neurocare_hospital",
+    "hospital_name": "Crescent NeuroCare Hospital",
+    "description": "Permitted model weights update submitted by 'Crescent NeuroCare Hospital'.",
+    "details": {
+      "update_id": "upd_1791453970_21ec",
+      "loss": 0.6868,
+      "dice": 0.5328
+    }
+  },
+  {
+    "id": "log_1791453967347_5e5e30",
+    "timestamp": "2026-10-08T10:06:07.347503+00:00",
+    "event_type": "TRAINING_COMPLETED",
+    "hospital_id": "crescent_neurocare_hospital",
+    "hospital_name": "Crescent NeuroCare Hospital",
+    "description": "Local training completed at 'Crescent NeuroCare Hospital'. Loss: 0.6868, Dice: 0.5328.",
+    "details": {
+      "loss": 0.6868,
+      "dice": 0.5328,
+      "epochs": 5,
+      "metrics": [
+        {
+          "epoch": 1,
+          "train_loss": 0.7151,
+          "val_loss": 0.6883,
+          "dice": 0.4828,
+          "elapsed_seconds": 0.43
+        },
+        {
+          "epoch": 2,
+          "train_loss": 0.7038,
+          "val_loss": 0.6871,
+          "dice": 0.4951,
+          "elapsed_seconds": 0.63
+        },
+        {
+          "epoch": 3,
+          "train_loss": 0.6986,
+          "val_loss": 0.6971,
+          "dice": 0.4961,
+          "elapsed_seconds": 0.83
+        },
+        {
+          "epoch": 4,
+          "train_loss": 0.6908,
+          "val_loss": 0.7053,
+          "dice": 0.5048,
+          "elapsed_seconds": 1.03
+        },
+        {
+          "epoch": 5,
+          "train_loss": 0.69,
+          "val_loss": 0.6868,
+          "dice": 0.5328,
+          "elapsed_seconds": 1.23
+        }
+      ]
+    }
+  },
+  {
+    "id": "log_1791453966073_471f4e",
+    "timestamp": "2026-10-08T10:06:06.073905+00:00",
+    "event_type": "TRAINING_STARTED",
+    "hospital_id": "crescent_neurocare_hospital",
+    "hospital_name": "Crescent NeuroCare Hospital",
+    "description": "Local training started at 'Crescent NeuroCare Hospital' (5 epoch(s)).",
+    "details": {}
+  },
+  {
+    "id": "log_1791453965406_c69500",
+    "timestamp": "2026-10-08T10:06:05.406395+00:00",
+    "event_type": "DATASET_CONFIGURED",
+    "hospital_id": "crescent_neurocare_hospital",
+    "hospital_name": "Crescent NeuroCare Hospital",
+    "description": "Configured DEMO/SYNTHETIC dataset (3 volumes) for 'Crescent NeuroCare Hospital'.",
+    "details": {
+      "mode": "demo",
+      "samples": 3
+    }
+  },
+  {
+    "id": "log_1791453965046_40326e",
+    "timestamp": "2026-10-08T10:06:05.046666+00:00",
+    "event_type": "DATASET_CONFIGURED",
+    "hospital_id": "crescent_neurocare_hospital",
+    "hospital_name": "Crescent NeuroCare Hospital",
+    "description": "Configured DEMO/SYNTHETIC dataset (3 volumes) for 'Crescent NeuroCare Hospital'.",
+    "details": {
+      "mode": "demo",
+      "samples": 3
+    }
+  },
+  {
+    "id": "log_1791453964523_cb7839",
+    "timestamp": "2026-10-08T10:06:04.524472+00:00",
+    "event_type": "DATASET_CONFIGURED",
+    "hospital_id": "crescent_neurocare_hospital",
+    "hospital_name": "Crescent NeuroCare Hospital",
+    "description": "Configured DEMO/SYNTHETIC dataset (3 volumes) for 'Crescent NeuroCare Hospital'.",
+    "details": {
+      "mode": "demo",
+      "samples": 3
+    }
+  },
+  {
+    "id": "log_1791453963443_9d674c",
+    "timestamp": "2026-10-08T10:06:03.443291+00:00",
+    "event_type": "DATASET_CONFIGURED",
+    "hospital_id": "crescent_neurocare_hospital",
+    "hospital_name": "Crescent NeuroCare Hospital",
+    "description": "Configured DEMO/SYNTHETIC dataset (3 volumes) for 'Crescent NeuroCare Hospital'.",
+    "details": {
+      "mode": "demo",
+      "samples": 3
+    }
+  },
+  {
+    "id": "log_1791453844239_a8ba05",
+    "timestamp": "2026-10-08T10:04:04.239782+00:00",
+    "event_type": "TRAINING_COMPLETED",
+    "hospital_id": "asteria_institute_of_medical_sciences",
+    "hospital_name": "Asteria Institute of Medical Sciences",
+    "description": "Local training completed at 'Asteria Institute of Medical Sciences'. Loss: 0.6903, Dice: 0.4814.",
+    "details": {
+      "loss": 0.6903,
+      "dice": 0.4814,
+      "epochs": 5,
+      "metrics": [
+        {
+          "epoch": 1,
+          "train_loss": 0.7386,
+          "val_loss": 0.7014,
+          "dice": 0.4104,
+          "elapsed_seconds": 0.89
+        },
+        {
+          "epoch": 2,
+          "train_loss": 0.7315,
+          "val_loss": 0.6964,
+          "dice": 0.4272,
+          "elapsed_seconds": 1.1
+        },
+        {
+          "epoch": 3,
+          "train_loss": 0.7233,
+          "val_loss": 0.6938,
+          "dice": 0.4478,
+          "elapsed_seconds": 1.29
+        },
+        {
+          "epoch": 4,
+          "train_loss": 0.7104,
+          "val_loss": 0.6901,
+          "dice": 0.4687,
+          "elapsed_seconds": 1.49
+        },
+        {
+          "epoch": 5,
+          "train_loss": 0.7008,
+          "val_loss": 0.6903,
+          "dice": 0.4814,
+          "elapsed_seconds": 1.68
+        }
+      ]
+    }
+  },
+  {
+    "id": "log_1791453842485_47480b",
+    "timestamp": "2026-10-08T10:04:02.485871+00:00",
+    "event_type": "TRAINING_STARTED",
+    "hospital_id": "asteria_institute_of_medical_sciences",
+    "hospital_name": "Asteria Institute of Medical Sciences",
+    "description": "Local training started at 'Asteria Institute of Medical Sciences' (5 epoch(s)).",
+    "details": {}
+  },
+  {
+    "id": "log_1791453837767_0c9408",
+    "timestamp": "2026-10-08T10:03:57.767130+00:00",
+    "event_type": "DATASET_CONFIGURED",
+    "hospital_id": "asteria_institute_of_medical_sciences",
+    "hospital_name": "Asteria Institute of Medical Sciences",
+    "description": "Configured DEMO/SYNTHETIC dataset (3 volumes) for 'Asteria Institute of Medical Sciences'.",
+    "details": {
+      "mode": "demo",
+      "samples": 3
+    }
+  },
+  {
+    "id": "log_1791453834104_ab087f",
+    "timestamp": "2026-10-08T10:03:54.104440+00:00",
+    "event_type": "CONTAINER_STARTED",
+    "hospital_id": null,
+    "hospital_name": null,
+    "description": "Docker container '5f2236429ee7' started.",
+    "details": {
+      "container": "5f2236429ee7",
+      "hospital_id": "crescent_neurocare_hospital"
+    }
+  },
+  {
+    "id": "log_1791453813852_ca3225",
+    "timestamp": "2026-10-08T10:03:33.856250+00:00",
+    "event_type": "CONTAINER_STARTED",
+    "hospital_id": null,
+    "hospital_name": null,
+    "description": "Docker container 'b91f2378cb1f' started.",
+    "details": {
+      "container": "b91f2378cb1f",
+      "hospital_id": "asteria_institute_of_medical_sciences"
+    }
+  },
+  {
+    "id": "log_1791451836021_0c10b8",
+    "timestamp": "2026-10-08T09:30:36.022481+00:00",
+    "event_type": "FEDERATION_COMPLETED",
+    "hospital_id": null,
+    "hospital_name": null,
+    "description": "Federation Round 7 complete (FedAvg). Produced Global Model v7 with 3 hospital(s).",
+    "details": {
+      "strategy": "FedAvg",
+      "new_version": 7,
+      "participants": [
+        "Meridian Brain & Spine Institute",
+        "Asteria Institute of Medical Sciences",
+        "Crescent NeuroCare Hospital"
+      ],
+      "loss": 0.6905,
+      "dice": 0.4855
+    }
+  },
+  {
+    "id": "log_1791451820262_ef7644",
+    "timestamp": "2026-10-08T09:30:20.262445+00:00",
+    "event_type": "MODEL_SUBMITTED",
+    "hospital_id": "crescent_neurocare_hospital",
+    "hospital_name": "Crescent NeuroCare Hospital",
+    "description": "Permitted model weights update submitted by 'Crescent NeuroCare Hospital'.",
+    "details": {
+      "update_id": "upd_1791451820_c113",
+      "loss": 0.6907,
+      "dice": 0.469
+    }
+  },
+  {
+    "id": "log_1791451814672_16cad2",
+    "timestamp": "2026-10-08T09:30:14.672620+00:00",
+    "event_type": "TRAINING_COMPLETED",
+    "hospital_id": "crescent_neurocare_hospital",
+    "hospital_name": "Crescent NeuroCare Hospital",
+    "description": "Local training completed at 'Crescent NeuroCare Hospital'. Loss: 0.6907, Dice: 0.469.",
+    "details": {
+      "loss": 0.6907,
+      "dice": 0.469,
+      "epochs": 5,
+      "metrics": [
+        {
+          "epoch": 1,
+          "train_loss": 0.7748,
+          "val_loss": 0.7073,
+          "dice": 0.3683,
+          "elapsed_seconds": 0.44
+        },
+        {
+          "epoch": 2,
+          "train_loss": 0.7586,
+          "val_loss": 0.7002,
+          "dice": 0.4016,
+          "elapsed_seconds": 0.64
+        },
+        {
+          "epoch": 3,
+          "train_loss": 0.7494,
+          "val_loss": 0.7029,
+          "dice": 0.4118,
+          "elapsed_seconds": 0.85
+        },
+        {
+          "epoch": 4,
+          "train_loss": 0.7349,
+          "val_loss": 0.6975,
+          "dice": 0.4412,
+          "elapsed_seconds": 1.08
+        },
+        {
+          "epoch": 5,
+          "train_loss": 0.7251,
+          "val_loss": 0.6907,
+          "dice": 0.469,
+          "elapsed_seconds": 1.29
+        }
+      ]
+    }
+  },
+  {
+    "id": "log_1791451813332_a7986f",
+    "timestamp": "2026-10-08T09:30:13.332767+00:00",
+    "event_type": "TRAINING_STARTED",
+    "hospital_id": "crescent_neurocare_hospital",
+    "hospital_name": "Crescent NeuroCare Hospital",
+    "description": "Local training started at 'Crescent NeuroCare Hospital' (5 epoch(s)).",
+    "details": {}
+  },
+  {
+    "id": "log_1791451799959_8f725f",
+    "timestamp": "2026-10-08T09:29:59.959309+00:00",
+    "event_type": "MODEL_SUBMITTED",
+    "hospital_id": "asteria_institute_of_medical_sciences",
+    "hospital_name": "Asteria Institute of Medical Sciences",
+    "description": "Permitted model weights update submitted by 'Asteria Institute of Medical Sciences'.",
+    "details": {
+      "update_id": "upd_1791451799_adb3",
+      "loss": 0.7065,
+      "dice": 0.3883
+    }
+  },
+  {
+    "id": "log_1791451774586_473f5c",
+    "timestamp": "2026-10-08T09:29:34.586128+00:00",
+    "event_type": "TRAINING_COMPLETED",
+    "hospital_id": "asteria_institute_of_medical_sciences",
+    "hospital_name": "Asteria Institute of Medical Sciences",
+    "description": "Local training completed at 'Asteria Institute of Medical Sciences'. Loss: 0.7065, Dice: 0.3883.",
+    "details": {
+      "loss": 0.7065,
+      "dice": 0.3883,
+      "epochs": 2,
+      "metrics": [
+        {
+          "epoch": 1,
+          "train_loss": 0.7719,
+          "val_loss": 0.7104,
+          "dice": 0.374,
+          "elapsed_seconds": 8.05
+        },
+        {
+          "epoch": 2,
+          "train_loss": 0.7587,
+          "val_loss": 0.7065,
+          "dice": 0.3883,
+          "elapsed_seconds": 8.27
+        }
+      ]
+    }
+  },
+  {
+    "id": "log_1791451766269_b607f8",
+    "timestamp": "2026-10-08T09:29:26.269145+00:00",
+    "event_type": "TRAINING_STARTED",
+    "hospital_id": "asteria_institute_of_medical_sciences",
+    "hospital_name": "Asteria Institute of Medical Sciences",
+    "description": "Local training started at 'Asteria Institute of Medical Sciences' (2 epoch(s)).",
+    "details": {}
+  },
+  {
+    "id": "log_1791451754736_59f1ed",
+    "timestamp": "2026-10-08T09:29:14.736609+00:00",
+    "event_type": "HOSPITAL_APPROVED",
+    "hospital_id": "crescent_neurocare_hospital",
+    "hospital_name": "Crescent NeuroCare Hospital",
+    "description": "Hospital 'Crescent NeuroCare Hospital' was approved by administrator.",
+    "details": {}
+  },
+  {
+    "id": "log_1791451753484_54a592",
+    "timestamp": "2026-10-08T09:29:13.484540+00:00",
+    "event_type": "HOSPITAL_APPROVED",
+    "hospital_id": "asteria_institute_of_medical_sciences",
+    "hospital_name": "Asteria Institute of Medical Sciences",
+    "description": "Hospital 'Asteria Institute of Medical Sciences' was approved by administrator.",
+    "details": {}
+  },
+  {
+    "id": "log_1791451743915_5b3c06",
+    "timestamp": "2026-10-08T09:29:03.915012+00:00",
+    "event_type": "APPROVAL_REQUESTED",
+    "hospital_id": "asteria_institute_of_medical_sciences",
+    "hospital_name": "Asteria Institute of Medical Sciences",
+    "description": "Hospital 'Asteria Institute of Medical Sciences' requested federation approval from central hub.",
+    "details": {}
+  },
+  {
+    "id": "log_1791451741101_85bdce",
+    "timestamp": "2026-10-08T09:29:01.101505+00:00",
+    "event_type": "MODEL_INITIALIZED",
+    "hospital_id": "asteria_institute_of_medical_sciences",
+    "hospital_name": "Asteria Institute of Medical Sciences",
+    "description": "Global Model (v6) synchronized and instantiated into 'Asteria Institute of Medical Sciences' environment.",
+    "details": {
+      "global_version": 6,
+      "weights_file": "C:\\fedmed_DSML_intern_grp20\\hospitals\\asteria_institute_of_medical_sciences\\local_model.pt"
+    }
+  },
+  {
+    "id": "log_1791451739008_2c52dd",
+    "timestamp": "2026-10-08T09:28:59.008632+00:00",
+    "event_type": "DATASET_CONFIGURED",
+    "hospital_id": "asteria_institute_of_medical_sciences",
+    "hospital_name": "Asteria Institute of Medical Sciences",
+    "description": "Configured DEMO/SYNTHETIC dataset (3 volumes) for 'Asteria Institute of Medical Sciences'.",
+    "details": {
+      "mode": "demo",
+      "samples": 3
+    }
+  },
+  {
+    "id": "log_1791451721535_d734b8",
+    "timestamp": "2026-10-08T09:28:41.535707+00:00",
+    "event_type": "APPROVAL_REQUESTED",
+    "hospital_id": "crescent_neurocare_hospital",
+    "hospital_name": "Crescent NeuroCare Hospital",
+    "description": "Hospital 'Crescent NeuroCare Hospital' requested federation approval from central hub.",
+    "details": {}
+  },
+  {
+    "id": "log_1791451707361_68fb85",
+    "timestamp": "2026-10-08T09:28:27.361208+00:00",
+    "event_type": "MODEL_INITIALIZED",
+    "hospital_id": "crescent_neurocare_hospital",
+    "hospital_name": "Crescent NeuroCare Hospital",
+    "description": "Global Model (v6) synchronized and instantiated into 'Crescent NeuroCare Hospital' environment.",
+    "details": {
+      "global_version": 6,
+      "weights_file": "C:\\fedmed_DSML_intern_grp20\\hospitals\\crescent_neurocare_hospital\\local_model.pt"
+    }
+  },
+  {
+    "id": "log_1791451691689_5ee7a8",
+    "timestamp": "2026-10-08T09:28:11.689836+00:00",
+    "event_type": "DATASET_CONFIGURED",
+    "hospital_id": "crescent_neurocare_hospital",
+    "hospital_name": "Crescent NeuroCare Hospital",
+    "description": "Configured DEMO/SYNTHETIC dataset (3 volumes) for 'Crescent NeuroCare Hospital'.",
+    "details": {
+      "mode": "demo",
+      "samples": 3
+    }
+  },
+  {
+    "id": "log_1791451687434_1e4f75",
+    "timestamp": "2026-10-08T09:28:07.434575+00:00",
+    "event_type": "HOSPITAL_REGISTERED",
+    "hospital_id": "crescent_neurocare_hospital",
+    "hospital_name": "Crescent NeuroCare Hospital",
+    "description": "Hospital 'Crescent NeuroCare Hospital' (crescent_neurocare_hospital) was registered as docker.",
+    "details": {
+      "type": "docker",
+      "endpoint": "http://127.0.0.1:8085"
+    }
+  },
+  {
+    "id": "log_1791451655346_785148",
+    "timestamp": "2026-10-08T09:27:35.346223+00:00",
+    "event_type": "HOSPITAL_REGISTERED",
+    "hospital_id": "asteria_institute_of_medical_sciences",
+    "hospital_name": "Asteria Institute of Medical Sciences",
+    "description": "Hospital 'Asteria Institute of Medical Sciences' (asteria_institute_of_medical_sciences) was registered as docker.",
+    "details": {
+      "type": "docker",
+      "endpoint": "http://127.0.0.1:8084"
+    }
+  },
+  {
+    "id": "log_1791451633958_be2667",
+    "timestamp": "2026-10-08T09:27:13.959543+00:00",
+    "event_type": "EXECUTION_MODE_CHANGED",
+    "hospital_id": null,
+    "hospital_name": null,
+    "description": "Execution mode set to Docker Remote Hospital Simulation.",
+    "details": {
+      "mode": "docker"
+    }
+  },
+  {
+    "id": "log_1791451210288_291394",
+    "timestamp": "2026-10-08T09:20:10.288805+00:00",
+    "event_type": "HOSPITAL_REMOVED",
+    "hospital_id": "zenith_advanced_care_hospital",
+    "hospital_name": "Zenith Advanced Care Hospital",
+    "description": "Hospital 'Zenith Advanced Care Hospital' was removed from central registry.",
+    "details": {}
+  },
+  {
+    "id": "log_1791451202926_ee1430",
+    "timestamp": "2026-10-08T09:20:02.926913+00:00",
+    "event_type": "CONTAINER_REMOVED",
+    "hospital_id": null,
+    "hospital_name": null,
+    "description": "Docker container '985ae7272441' removed.",
+    "details": {
+      "container": "985ae7272441"
+    }
+  },
+  {
+    "id": "log_1791451187948_001599",
+    "timestamp": "2026-10-08T09:19:47.948262+00:00",
+    "event_type": "HOSPITAL_REMOVED",
+    "hospital_id": "sim_hospital_1",
+    "hospital_name": "Medico Life",
+    "description": "Hospital 'Medico Life' was removed from central registry.",
+    "details": {}
+  },
+  {
+    "id": "log_1791451166194_31a7c5",
+    "timestamp": "2026-10-08T09:19:26.194465+00:00",
+    "event_type": "HOSPITAL_REMOVED",
+    "hospital_id": "meridian_brain_&_spine_institute",
+    "hospital_name": "Meridian Brain & Spine Institute",
+    "description": "Hospital 'Meridian Brain & Spine Institute' was removed from central registry.",
+    "details": {}
+  },
+  {
+    "id": "log_1791451156270_6c2703",
+    "timestamp": "2026-10-08T09:19:16.270852+00:00",
+    "event_type": "CONTAINER_STOPPED",
+    "hospital_id": null,
+    "hospital_name": null,
+    "description": "Docker container 'fedmed-sim-meridian_brain_spine_institute' stopped.",
+    "details": {
+      "container": "fedmed-sim-meridian_brain_spine_institute"
+    }
+  },
+  {
+    "id": "log_1791451147163_b11738",
+    "timestamp": "2026-10-08T09:19:07.163380+00:00",
+    "event_type": "CONTAINER_STOPPED",
+    "hospital_id": null,
+    "hospital_name": null,
+    "description": "Docker container 'fedmed-sim-zenith_advanced_care_hospital' stopped.",
+    "details": {
+      "container": "fedmed-sim-zenith_advanced_care_hospital"
+    }
+  },
+  {
+    "id": "log_1791451073407_61cf26",
+    "timestamp": "2026-10-08T09:17:53.407009+00:00",
+    "event_type": "CONTAINER_RESTARTED",
+    "hospital_id": null,
+    "hospital_name": null,
+    "description": "Docker container 'fedmed-sim-meridian_brain_spine_institute' restarted.",
+    "details": {
+      "container": "fedmed-sim-meridian_brain_spine_institute"
+    }
+  },
+  {
+    "id": "log_1791451059555_6415dd",
+    "timestamp": "2026-10-08T09:17:39.555089+00:00",
+    "event_type": "CONTAINER_STARTED",
+    "hospital_id": null,
+    "hospital_name": null,
+    "description": "Docker container 'fedmed-sim-meridian_brain_spine_institute' started.",
+    "details": {
+      "container": "fedmed-sim-meridian_brain_spine_institute",
+      "hospital_id": "meridian_brain_&_spine_institute"
+    }
+  },
+  {
+    "id": "log_1791451043390_07f2c5",
+    "timestamp": "2026-10-08T09:17:23.390574+00:00",
+    "event_type": "CONTAINER_STOPPED",
+    "hospital_id": null,
+    "hospital_name": null,
+    "description": "Docker container 'fedmed-sim-meridian_brain_spine_institute' stopped.",
+    "details": {
+      "container": "fedmed-sim-meridian_brain_spine_institute"
+    }
+  },
+  {
+    "id": "log_1791450958981_c4d216",
+    "timestamp": "2026-10-08T09:15:58.981509+00:00",
+    "event_type": "CONTAINER_RESTARTED",
+    "hospital_id": null,
+    "hospital_name": null,
+    "description": "Docker container 'fedmed-sim-zenith_advanced_care_hospital' restarted.",
+    "details": {
+      "container": "fedmed-sim-zenith_advanced_care_hospital"
+    }
+  },
+  {
+    "id": "log_1791450940078_3005b6",
+    "timestamp": "2026-10-08T09:15:40.078683+00:00",
+    "event_type": "CONTAINER_STARTED",
+    "hospital_id": null,
+    "hospital_name": null,
+    "description": "Docker container 'fedmed-sim-zenith_advanced_care_hospital' started.",
+    "details": {
+      "container": "fedmed-sim-zenith_advanced_care_hospital",
+      "hospital_id": "zenith_advanced_care_hospital"
+    }
+  },
+  {
+    "id": "log_1791450917090_fea833",
+    "timestamp": "2026-10-08T09:15:17.090853+00:00",
+    "event_type": "CONTAINER_STOPPED",
+    "hospital_id": null,
+    "hospital_name": null,
+    "description": "Docker container 'fedmed-sim-zenith_advanced_care_hospital' stopped.",
+    "details": {
+      "container": "fedmed-sim-zenith_advanced_care_hospital"
+    }
+  },
+  {
+    "id": "log_1791450485757_44a2c2",
+    "timestamp": "2026-10-08T09:08:05.757032+00:00",
+    "event_type": "EXECUTION_MODE_CHANGED",
+    "hospital_id": null,
+    "hospital_name": null,
+    "description": "Execution mode set to Docker Remote Hospital Simulation.",
+    "details": {
+      "mode": "docker"
+    }
+  },
+  {
+    "id": "log_1791449762728_625cc7",
+    "timestamp": "2026-10-08T08:56:02.728726+00:00",
+    "event_type": "MODEL_SUBMITTED",
+    "hospital_id": "meridian_brain_&_spine_institute",
+    "hospital_name": "Meridian Brain & Spine Institute",
+    "description": "Permitted model weights update submitted by 'Meridian Brain & Spine Institute'.",
+    "details": {
+      "update_id": "upd_1791449762_db2b",
+      "loss": 0.6743,
+      "dice": 0.5993
+    }
+  },
+  {
+    "id": "log_1791449757212_8d7124",
+    "timestamp": "2026-10-08T08:55:57.212751+00:00",
+    "event_type": "TRAINING_COMPLETED",
+    "hospital_id": "meridian_brain_&_spine_institute",
+    "hospital_name": "Meridian Brain & Spine Institute",
+    "description": "Local training completed at 'Meridian Brain & Spine Institute'. Loss: 0.6743, Dice: 0.5993.",
+    "details": {
+      "loss": 0.6743,
+      "dice": 0.5993,
+      "epochs": 5,
+      "metrics": [
+        {
+          "epoch": 1,
+          "train_loss": 0.7284,
+          "val_loss": 0.6775,
+          "dice": 0.5659,
+          "elapsed_seconds": 0.4
+        },
+        {
+          "epoch": 2,
+          "train_loss": 0.7236,
+          "val_loss": 0.6865,
+          "dice": 0.5597,
+          "elapsed_seconds": 0.61
+        },
+        {
+          "epoch": 3,
+          "train_loss": 0.7053,
+          "val_loss": 0.6837,
+          "dice": 0.5727,
+          "elapsed_seconds": 0.8
+        },
+        {
+          "epoch": 4,
+          "train_loss": 0.7099,
+          "val_loss": 0.6711,
+          "dice": 0.6023,
+          "elapsed_seconds": 0.99
+        },
+        {
+          "epoch": 5,
+          "train_loss": 0.6966,
+          "val_loss": 0.6743,
+          "dice": 0.5993,
+          "elapsed_seconds": 1.2
+        }
+      ]
+    }
+  },
+  {
+    "id": "log_1791449755971_4cb248",
+    "timestamp": "2026-10-08T08:55:55.971645+00:00",
+    "event_type": "TRAINING_STARTED",
+    "hospital_id": "meridian_brain_&_spine_institute",
+    "hospital_name": "Meridian Brain & Spine Institute",
+    "description": "Local training started at 'Meridian Brain & Spine Institute' (5 epoch(s)).",
+    "details": {}
+  },
+  {
+    "id": "log_1791449751222_0fe33c",
+    "timestamp": "2026-10-08T08:55:51.222089+00:00",
+    "event_type": "TRAINING_COMPLETED",
+    "hospital_id": "meridian_brain_&_spine_institute",
+    "hospital_name": "Meridian Brain & Spine Institute",
+    "description": "Local training completed at 'Meridian Brain & Spine Institute'. Loss: 0.682, Dice: 0.5595.",
+    "details": {
+      "loss": 0.682,
+      "dice": 0.5595,
+      "epochs": 2,
+      "metrics": [
+        {
+          "epoch": 1,
+          "train_loss": 0.7568,
+          "val_loss": 0.6794,
+          "dice": 0.5428,
+          "elapsed_seconds": 0.82
+        },
+        {
+          "epoch": 2,
+          "train_loss": 0.7393,
+          "val_loss": 0.682,
+          "dice": 0.5595,
+          "elapsed_seconds": 1.03
+        }
+      ]
+    }
+  },
+  {
+    "id": "log_1791449750104_6a649d",
+    "timestamp": "2026-10-08T08:55:50.105488+00:00",
+    "event_type": "TRAINING_STARTED",
+    "hospital_id": "meridian_brain_&_spine_institute",
+    "hospital_name": "Meridian Brain & Spine Institute",
+    "description": "Local training started at 'Meridian Brain & Spine Institute' (2 epoch(s)).",
+    "details": {}
+  },
+  {
+    "id": "log_1791449606421_6aaaac",
+    "timestamp": "2026-10-08T08:53:26.421161+00:00",
+    "event_type": "FEDERATION_COMPLETED",
+    "hospital_id": null,
+    "hospital_name": null,
+    "description": "Federation Round 6 complete (FedAvg). Produced Global Model v6 with 2 hospital(s).",
+    "details": {
+      "strategy": "FedAvg",
+      "new_version": 6,
+      "participants": [
+        "Zenith Advanced Care Hospital",
+        "Meridian Brain & Spine Institute"
+      ],
+      "loss": 0.6801,
+      "dice": 0.5483
+    }
+  },
+  {
+    "id": "log_1791449586230_b3a82f",
+    "timestamp": "2026-10-08T08:53:06.230315+00:00",
+    "event_type": "MODEL_SUBMITTED",
+    "hospital_id": "meridian_brain_&_spine_institute",
+    "hospital_name": "Meridian Brain & Spine Institute",
+    "description": "Permitted model weights update submitted by 'Meridian Brain & Spine Institute'.",
+    "details": {
+      "update_id": "upd_1791449586_6f29",
+      "loss": 0.6837,
+      "dice": 0.5354
+    }
+  },
+  {
+    "id": "log_1791449560840_ac1a6e",
+    "timestamp": "2026-10-08T08:52:40.840480+00:00",
+    "event_type": "TRAINING_COMPLETED",
+    "hospital_id": "meridian_brain_&_spine_institute",
+    "hospital_name": "Meridian Brain & Spine Institute",
+    "description": "Local training completed at 'Meridian Brain & Spine Institute'. Loss: 0.6837, Dice: 0.5354.",
+    "details": {
+      "loss": 0.6837,
+      "dice": 0.5354,
+      "epochs": 5,
+      "metrics": [
+        {
+          "epoch": 1,
+          "train_loss": 0.7916,
+          "val_loss": 0.682,
+          "dice": 0.58,
+          "elapsed_seconds": 0.44
+        },
+        {
+          "epoch": 2,
+          "train_loss": 0.7831,
+          "val_loss": 0.6758,
+          "dice": 0.5556,
+          "elapsed_seconds": 0.68
+        },
+        {
+          "epoch": 3,
+          "train_loss": 0.7773,
+          "val_loss": 0.683,
+          "dice": 0.5337,
+          "elapsed_seconds": 0.93
+        },
+        {
+          "epoch": 4,
+          "train_loss": 0.7703,
+          "val_loss": 0.682,
+          "dice": 0.5311,
+          "elapsed_seconds": 1.18
+        },
+        {
+          "epoch": 5,
+          "train_loss": 0.7598,
+          "val_loss": 0.6837,
+          "dice": 0.5354,
+          "elapsed_seconds": 1.43
+        }
+      ]
+    }
+  },
+  {
+    "id": "log_1791449559368_3eb4ed",
+    "timestamp": "2026-10-08T08:52:39.368295+00:00",
+    "event_type": "TRAINING_STARTED",
+    "hospital_id": "meridian_brain_&_spine_institute",
+    "hospital_name": "Meridian Brain & Spine Institute",
+    "description": "Local training started at 'Meridian Brain & Spine Institute' (5 epoch(s)).",
+    "details": {}
+  },
+  {
+    "id": "log_1791449543693_6a8693",
+    "timestamp": "2026-10-08T08:52:23.693829+00:00",
+    "event_type": "MODEL_SUBMITTED",
+    "hospital_id": "zenith_advanced_care_hospital",
+    "hospital_name": "Zenith Advanced Care Hospital",
+    "description": "Permitted model weights update submitted by 'Zenith Advanced Care Hospital'.",
+    "details": {
+      "update_id": "upd_1791449543_e8c1",
+      "loss": 0.6765,
+      "dice": 0.5612
+    }
+  },
+  {
+    "id": "log_1791449527975_7d5aca",
+    "timestamp": "2026-10-08T08:52:07.975153+00:00",
+    "event_type": "TRAINING_COMPLETED",
+    "hospital_id": "zenith_advanced_care_hospital",
+    "hospital_name": "Zenith Advanced Care Hospital",
+    "description": "Local training completed at 'Zenith Advanced Care Hospital'. Loss: 0.6765, Dice: 0.5612.",
+    "details": {
+      "loss": 0.6765,
+      "dice": 0.5612,
+      "epochs": 2,
+      "metrics": [
+        {
+          "epoch": 1,
+          "train_loss": 0.7878,
+          "val_loss": 0.6727,
+          "dice": 0.5852,
+          "elapsed_seconds": 0.9
+        },
+        {
+          "epoch": 2,
+          "train_loss": 0.7846,
+          "val_loss": 0.6765,
+          "dice": 0.5612,
+          "elapsed_seconds": 1.16
+        }
+      ]
+    }
+  },
+  {
+    "id": "log_1791449526756_d95a06",
+    "timestamp": "2026-10-08T08:52:06.756466+00:00",
+    "event_type": "TRAINING_STARTED",
+    "hospital_id": "zenith_advanced_care_hospital",
+    "hospital_name": "Zenith Advanced Care Hospital",
+    "description": "Local training started at 'Zenith Advanced Care Hospital' (2 epoch(s)).",
+    "details": {}
+  },
+  {
+    "id": "log_1791449507708_f6a394",
+    "timestamp": "2026-10-08T08:51:47.708378+00:00",
+    "event_type": "HOSPITAL_APPROVED",
+    "hospital_id": "meridian_brain_&_spine_institute",
+    "hospital_name": "Meridian Brain & Spine Institute",
+    "description": "Hospital 'Meridian Brain & Spine Institute' was approved by administrator.",
+    "details": {}
+  },
+  {
+    "id": "log_1791449500412_1d96e0",
+    "timestamp": "2026-10-08T08:51:40.412073+00:00",
+    "event_type": "APPROVAL_REQUESTED",
+    "hospital_id": "meridian_brain_&_spine_institute",
+    "hospital_name": "Meridian Brain & Spine Institute",
+    "description": "Hospital 'Meridian Brain & Spine Institute' requested federation approval from central hub.",
+    "details": {}
+  },
+  {
+    "id": "log_1791449495571_b95afb",
+    "timestamp": "2026-10-08T08:51:35.571161+00:00",
+    "event_type": "MODEL_INITIALIZED",
+    "hospital_id": "meridian_brain_&_spine_institute",
+    "hospital_name": "Meridian Brain & Spine Institute",
+    "description": "Global Model (v5) synchronized and instantiated into 'Meridian Brain & Spine Institute' environment.",
+    "details": {
+      "global_version": 5,
+      "weights_file": "C:\\fedmed_DSML_intern_grp20\\hospitals\\meridian_brain_&_spine_institute\\local_model.pt"
+    }
+  },
+  {
+    "id": "log_1791449486149_dab07c",
+    "timestamp": "2026-10-08T08:51:26.149368+00:00",
+    "event_type": "DATASET_CONFIGURED",
+    "hospital_id": "meridian_brain_&_spine_institute",
+    "hospital_name": "Meridian Brain & Spine Institute",
+    "description": "Configured DEMO/SYNTHETIC dataset (3 volumes) for 'Meridian Brain & Spine Institute'.",
+    "details": {
+      "mode": "demo",
+      "samples": 3
+    }
+  },
+  {
+    "id": "log_1791449479649_3819d6",
+    "timestamp": "2026-10-08T08:51:19.649079+00:00",
+    "event_type": "HOSPITAL_REGISTERED",
+    "hospital_id": "meridian_brain_&_spine_institute",
+    "hospital_name": "Meridian Brain & Spine Institute",
+    "description": "Hospital 'Meridian Brain & Spine Institute' (meridian_brain_&_spine_institute) was registered as docker.",
+    "details": {
+      "type": "docker",
+      "endpoint": "http://127.0.0.1:8086"
+    }
+  },
+  {
+    "id": "log_1791449421422_f7f7e4",
+    "timestamp": "2026-10-08T08:50:21.422995+00:00",
+    "event_type": "HOSPITAL_APPROVED",
+    "hospital_id": "zenith_advanced_care_hospital",
+    "hospital_name": "Zenith Advanced Care Hospital",
+    "description": "Hospital 'Zenith Advanced Care Hospital' was approved by administrator.",
+    "details": {}
+  },
+  {
+    "id": "log_1791449411446_c67191",
+    "timestamp": "2026-10-08T08:50:11.446112+00:00",
+    "event_type": "APPROVAL_REQUESTED",
+    "hospital_id": "zenith_advanced_care_hospital",
+    "hospital_name": "Zenith Advanced Care Hospital",
+    "description": "Hospital 'Zenith Advanced Care Hospital' requested federation approval from central hub.",
+    "details": {}
+  },
+  {
+    "id": "log_1791449403021_9e2aa4",
+    "timestamp": "2026-10-08T08:50:03.021546+00:00",
+    "event_type": "MODEL_INITIALIZED",
+    "hospital_id": "zenith_advanced_care_hospital",
+    "hospital_name": "Zenith Advanced Care Hospital",
+    "description": "Global Model (v5) synchronized and instantiated into 'Zenith Advanced Care Hospital' environment.",
+    "details": {
+      "global_version": 5,
+      "weights_file": "C:\\fedmed_DSML_intern_grp20\\hospitals\\zenith_advanced_care_hospital\\local_model.pt"
+    }
+  },
+  {
+    "id": "log_1791449394681_7d4472",
+    "timestamp": "2026-10-08T08:49:54.681268+00:00",
+    "event_type": "DATASET_CONFIGURED",
+    "hospital_id": "zenith_advanced_care_hospital",
+    "hospital_name": "Zenith Advanced Care Hospital",
+    "description": "Configured DEMO/SYNTHETIC dataset (3 volumes) for 'Zenith Advanced Care Hospital'.",
+    "details": {
+      "mode": "demo",
+      "samples": 3
+    }
+  },
+  {
+    "id": "log_1791449377288_c02dea",
+    "timestamp": "2026-10-08T08:49:37.288319+00:00",
+    "event_type": "HOSPITAL_REGISTERED",
+    "hospital_id": "zenith_advanced_care_hospital",
+    "hospital_name": "Zenith Advanced Care Hospital",
+    "description": "Hospital 'Zenith Advanced Care Hospital' (zenith_advanced_care_hospital) was registered as docker.",
+    "details": {
+      "type": "docker",
+      "endpoint": "http://127.0.0.1:8085"
+    }
+  },
+  {
+    "id": "log_1791449326017_014897",
+    "timestamp": "2026-10-08T08:48:46.021045+00:00",
+    "event_type": "HOSPITAL_REMOVED",
+    "hospital_id": "st_jude",
+    "hospital_name": "St Jude Research Hospital",
+    "description": "Hospital 'St Jude Research Hospital' was removed from central registry.",
+    "details": {}
+  },
+  {
+    "id": "log_1791449261004_17df42",
+    "timestamp": "2026-10-08T08:47:41.004529+00:00",
+    "event_type": "HOSPITAL_APPROVED",
+    "hospital_id": "hosp-856",
+    "hospital_name": "NovaCare Institute of Neurosciences",
+    "description": "Hospital 'NovaCare Institute of Neurosciences' was approved by administrator.",
+    "details": {}
+  },
+  {
+    "id": "log_1791449248788_fae327",
+    "timestamp": "2026-10-08T08:47:28.788270+00:00",
+    "event_type": "APPROVAL_REQUESTED",
+    "hospital_id": "hosp-856",
+    "hospital_name": "NovaCare Institute of Neurosciences",
+    "description": "Hospital 'NovaCare Institute of Neurosciences' requested federation approval from central hub.",
+    "details": {}
+  },
+  {
+    "id": "log_1791449236531_ed3937",
+    "timestamp": "2026-10-08T08:47:16.531732+00:00",
+    "event_type": "HOSPITAL_REJECTED",
+    "hospital_id": "hosp-619",
+    "hospital_name": "Gangamma Multispeciality Hospital",
+    "description": "Hospital 'Gangamma Multispeciality Hospital' was rejected.",
+    "details": {}
+  },
+  {
+    "id": "log_1791449230910_8c61f7",
+    "timestamp": "2026-10-08T08:47:10.910682+00:00",
+    "event_type": "HOSPITAL_APPROVED",
+    "hospital_id": "hosp-618",
+    "hospital_name": "Apollo Ridge Medical Center",
+    "description": "Hospital 'Apollo Ridge Medical Center' was approved by administrator.",
+    "details": {}
+  },
+  {
+    "id": "log_1791449224785_0d3af7",
+    "timestamp": "2026-10-08T08:47:04.785549+00:00",
+    "event_type": "HOSPITAL_REGISTERED",
+    "hospital_id": "hosp-856",
+    "hospital_name": "NovaCare Institute of Neurosciences",
+    "description": "Hospital 'NovaCare Institute of Neurosciences' (hosp-856) was registered as remote.",
+    "details": {
+      "type": "remote",
+      "endpoint": "http://127.0.0.138:8041"
+    }
+  },
+  {
+    "id": "log_1791449088646_867f76",
+    "timestamp": "2026-10-08T08:44:48.646257+00:00",
+    "event_type": "HOSPITAL_REGISTERED",
+    "hospital_id": "hosp-619",
+    "hospital_name": "Gangamma Multispeciality Hospital",
+    "description": "Hospital 'Gangamma Multispeciality Hospital' (hosp-619) was registered as remote.",
+    "details": {
+      "type": "remote",
+      "endpoint": "http://192.168.1.122:8092"
+    }
+  },
+  {
+    "id": "log_1791448943678_0440e9",
+    "timestamp": "2026-10-08T08:42:23.678406+00:00",
+    "event_type": "HOSPITAL_REGISTERED",
+    "hospital_id": "hosp-618",
+    "hospital_name": "Apollo Ridge Medical Center",
+    "description": "Hospital 'Apollo Ridge Medical Center' (hosp-618) was registered as remote.",
+    "details": {
+      "type": "remote",
+      "endpoint": "http://192.168.1.269:8091"
+    }
+  },
+  {
+    "id": "log_1791448873142_b4d51f",
+    "timestamp": "2026-10-08T08:41:13.144240+00:00",
+    "event_type": "HOSPITAL_REMOVED",
+    "hospital_id": "mayo_neuro",
+    "hospital_name": "Mayo Clinic Neuro",
+    "description": "Hospital 'Mayo Clinic Neuro' was removed from central registry.",
+    "details": {}
+  },
+  {
+    "id": "log_1791446574512_b8a192",
+    "timestamp": "2026-10-08T08:02:54.512833+00:00",
+    "event_type": "HOSPITAL_REMOVED",
+    "hospital_id": "jh_onco",
+    "hospital_name": "Johns Hopkins Oncology",
+    "description": "Hospital 'Johns Hopkins Oncology' was removed from central registry.",
+    "details": {}
+  },
+  {
+    "id": "log_1791446571086_6be3c0",
+    "timestamp": "2026-10-08T08:02:51.087703+00:00",
+    "event_type": "HOSPITAL_REJECTED",
+    "hospital_id": "jh_onco",
+    "hospital_name": "Johns Hopkins Oncology",
+    "description": "Hospital 'Johns Hopkins Oncology' was rejected.",
+    "details": {}
+  },
+  {
+    "id": "log_1791446200061_b4cf90",
+    "timestamp": "2026-10-08T07:56:40.065201+00:00",
+    "event_type": "EXECUTION_MODE_CHANGED",
+    "hospital_id": null,
+    "hospital_name": null,
+    "description": "Execution mode set to Docker Remote Hospital Simulation.",
+    "details": {
+      "mode": "docker"
+    }
+  },
+  {
+    "id": "log_1791445857455_445795",
+    "timestamp": "2026-10-08T07:50:57.455488+00:00",
+    "event_type": "FEDERATION_COMPLETED",
+    "hospital_id": null,
+    "hospital_name": null,
+    "description": "Federation Round 5 complete (FedAvg). Produced Global Model v5 with 1 hospital(s).",
+    "details": {
+      "strategy": "FedAvg",
+      "new_version": 5,
+      "participants": [
+        "Mayo Clinic Neuro"
+      ],
+      "loss": 0.6905,
+      "dice": 0.5413
+    }
+  },
+  {
+    "id": "log_1791445857369_68cb08",
+    "timestamp": "2026-10-08T07:50:57.369634+00:00",
+    "event_type": "MODEL_SUBMITTED",
+    "hospital_id": "mayo_neuro",
+    "hospital_name": "Mayo Clinic Neuro",
+    "description": "Permitted model weights update submitted by 'Mayo Clinic Neuro'.",
+    "details": {
+      "update_id": "upd_1791445857_f320",
+      "loss": 0.6905,
+      "dice": 0.5413
+    }
+  },
+  {
+    "id": "log_1791445857359_a07051",
+    "timestamp": "2026-10-08T07:50:57.359175+00:00",
+    "event_type": "TRAINING_COMPLETED",
+    "hospital_id": "mayo_neuro",
+    "hospital_name": "Mayo Clinic Neuro",
+    "description": "Local training completed at 'Mayo Clinic Neuro'. Loss: 0.6905, Dice: 0.5413.",
+    "details": {
+      "loss": 0.6905,
+      "dice": 0.5413,
+      "epochs": 1,
+      "metrics": [
+        {
+          "epoch": 1,
+          "train_loss": 0.7993,
+          "val_loss": 0.6905,
+          "dice": 0.5413,
+          "elapsed_seconds": 0.32
+        }
+      ]
+    }
+  },
+  {
+    "id": "log_1791445857005_bcedc0",
+    "timestamp": "2026-10-08T07:50:57.005015+00:00",
+    "event_type": "TRAINING_STARTED",
+    "hospital_id": "mayo_neuro",
+    "hospital_name": "Mayo Clinic Neuro",
+    "description": "Local training started at 'Mayo Clinic Neuro' (1 epoch(s)).",
+    "details": {}
+  },
+  {
+    "id": "log_1791445856999_c11785",
+    "timestamp": "2026-10-08T07:50:56.999303+00:00",
+    "event_type": "HOSPITAL_APPROVED",
+    "hospital_id": "mayo_neuro",
+    "hospital_name": "Mayo Clinic Neuro",
+    "description": "Hospital 'Mayo Clinic Neuro' was approved by administrator.",
+    "details": {}
+  },
+  {
+    "id": "log_1791445856993_05b61e",
+    "timestamp": "2026-10-08T07:50:56.993841+00:00",
+    "event_type": "APPROVAL_REQUESTED",
+    "hospital_id": "mayo_neuro",
+    "hospital_name": "Mayo Clinic Neuro",
+    "description": "Hospital 'Mayo Clinic Neuro' requested federation approval from central hub.",
+    "details": {}
+  },
+  {
+    "id": "log_1791445856984_d98485",
+    "timestamp": "2026-10-08T07:50:56.984438+00:00",
+    "event_type": "MODEL_INITIALIZED",
+    "hospital_id": "mayo_neuro",
+    "hospital_name": "Mayo Clinic Neuro",
+    "description": "Global Model (v4) synchronized and instantiated into 'Mayo Clinic Neuro' environment.",
+    "details": {
+      "global_version": 4,
+      "weights_file": "C:\\fedmed_DSML_intern_grp20\\hospitals\\mayo_neuro\\local_model.pt"
+    }
+  },
+  {
+    "id": "log_1791445856781_580a27",
+    "timestamp": "2026-10-08T07:50:56.781772+00:00",
+    "event_type": "DATASET_CONFIGURED",
+    "hospital_id": "mayo_neuro",
+    "hospital_name": "Mayo Clinic Neuro",
+    "description": "Configured DEMO/SYNTHETIC dataset (3 volumes) for 'Mayo Clinic Neuro'.",
+    "details": {
+      "mode": "demo",
+      "samples": 3
+    }
+  },
+  {
+    "id": "log_1791445856766_cc04b9",
+    "timestamp": "2026-10-08T07:50:56.766729+00:00",
+    "event_type": "HOSPITAL_REGISTERED",
+    "hospital_id": "mayo_neuro",
+    "hospital_name": "Mayo Clinic Neuro",
+    "description": "Hospital 'Mayo Clinic Neuro' (mayo_neuro) was registered as docker.",
+    "details": {
+      "type": "docker",
+      "endpoint": "http://127.0.0.1:8084"
+    }
+  },
+  {
+    "id": "log_1791445829367_5a61d3",
+    "timestamp": "2026-10-08T07:50:29.367232+00:00",
+    "event_type": "FEDERATION_COMPLETED",
+    "hospital_id": null,
+    "hospital_name": null,
+    "description": "Federation Round 4 complete (FedAvg). Produced Global Model v4 with 2 hospital(s).",
+    "details": {
+      "strategy": "FedAvg",
+      "new_version": 4,
+      "participants": [
+        "Medico Life",
+        "St Jude Research Hospital"
+      ],
+      "loss": 0.4481,
+      "dice": 0.7388
+    }
+  },
+  {
+    "id": "log_1791445829074_a6f81c",
+    "timestamp": "2026-10-08T07:50:29.074463+00:00",
+    "event_type": "MODEL_SUBMITTED",
+    "hospital_id": "st_jude",
+    "hospital_name": "St Jude Research Hospital",
+    "description": "Permitted model weights update submitted by 'St Jude Research Hospital'.",
+    "details": {
+      "update_id": "upd_1791445829_7702",
+      "loss": 0.6821,
+      "dice": 0.5946
+    }
+  },
+  {
+    "id": "log_1791445829062_e77362",
+    "timestamp": "2026-10-08T07:50:29.062059+00:00",
+    "event_type": "TRAINING_COMPLETED",
+    "hospital_id": "st_jude",
+    "hospital_name": "St Jude Research Hospital",
+    "description": "Local training completed at 'St Jude Research Hospital'. Loss: 0.6821, Dice: 0.5946.",
+    "details": {
+      "loss": 0.6821,
+      "dice": 0.5946,
+      "epochs": 2,
+      "metrics": [
+        {
+          "epoch": 1,
+          "train_loss": 0.7705,
+          "val_loss": 0.6822,
+          "dice": 0.5926,
+          "elapsed_seconds": 6.05
+        },
+        {
+          "epoch": 2,
+          "train_loss": 0.7533,
+          "val_loss": 0.6821,
+          "dice": 0.5946,
+          "elapsed_seconds": 6.24
+        }
+      ]
+    }
+  },
+  {
+    "id": "log_1791445822784_3fc79f",
+    "timestamp": "2026-10-08T07:50:22.784974+00:00",
+    "event_type": "TRAINING_STARTED",
+    "hospital_id": "st_jude",
+    "hospital_name": "St Jude Research Hospital",
+    "description": "Local training started at 'St Jude Research Hospital' (2 epoch(s)).",
+    "details": {}
+  },
+  {
+    "id": "log_1791445822777_3e26e1",
+    "timestamp": "2026-10-08T07:50:22.777877+00:00",
+    "event_type": "HOSPITAL_APPROVED",
+    "hospital_id": "st_jude",
+    "hospital_name": "St Jude Research Hospital",
+    "description": "Hospital 'St Jude Research Hospital' was approved by administrator.",
+    "details": {}
+  },
+  {
+    "id": "log_1791445822770_6c5ed0",
+    "timestamp": "2026-10-08T07:50:22.770746+00:00",
+    "event_type": "APPROVAL_REQUESTED",
+    "hospital_id": "st_jude",
+    "hospital_name": "St Jude Research Hospital",
+    "description": "Hospital 'St Jude Research Hospital' requested federation approval from central hub.",
+    "details": {}
+  },
+  {
+    "id": "log_1791445822758_393164",
+    "timestamp": "2026-10-08T07:50:22.758554+00:00",
+    "event_type": "MODEL_INITIALIZED",
+    "hospital_id": "st_jude",
+    "hospital_name": "St Jude Research Hospital",
+    "description": "Global Model (v3) synchronized and instantiated into 'St Jude Research Hospital' environment.",
+    "details": {
+      "global_version": 3,
+      "weights_file": "C:\\fedmed_DSML_intern_grp20\\hospitals\\st_jude\\local_model.pt"
+    }
+  },
+  {
+    "id": "log_1791445808761_268863",
+    "timestamp": "2026-10-08T07:50:08.761205+00:00",
+    "event_type": "DATASET_CONFIGURED",
+    "hospital_id": "st_jude",
+    "hospital_name": "St Jude Research Hospital",
+    "description": "Configured DEMO/SYNTHETIC dataset (3 volumes) for 'St Jude Research Hospital'.",
+    "details": {
+      "mode": "demo",
+      "samples": 3
+    }
+  },
+  {
+    "id": "log_1791445796120_8eddfe",
+    "timestamp": "2026-10-08T07:49:56.120516+00:00",
+    "event_type": "CONTAINER_STARTED",
+    "hospital_id": null,
+    "hospital_name": null,
+    "description": "Docker container 'e9e204cc431d' started.",
+    "details": {
+      "container": "e9e204cc431d"
+    }
+  },
+  {
+    "id": "log_1791445787574_3d3727",
+    "timestamp": "2026-10-08T07:49:47.574882+00:00",
+    "event_type": "CONTAINER_STOPPED",
+    "hospital_id": null,
+    "hospital_name": null,
+    "description": "Docker container 'e9e204cc431d' stopped.",
+    "details": {
+      "container": "e9e204cc431d"
+    }
+  },
+  {
+    "id": "log_1791445773054_a19a64",
+    "timestamp": "2026-10-08T07:49:33.054528+00:00",
+    "event_type": "HOSPITAL_REGISTERED",
+    "hospital_id": "jh_onco",
+    "hospital_name": "Johns Hopkins Oncology",
+    "description": "Hospital 'Johns Hopkins Oncology' (jh_onco) was registered as docker.",
+    "details": {
+      "type": "docker",
+      "endpoint": "http://127.0.0.1:8086"
+    }
+  },
+  {
+    "id": "log_1791445751842_798feb",
+    "timestamp": "2026-10-08T07:49:11.842625+00:00",
+    "event_type": "HOSPITAL_REGISTERED",
+    "hospital_id": "st_jude",
+    "hospital_name": "St Jude Research Hospital",
+    "description": "Hospital 'St Jude Research Hospital' (st_jude) was registered as docker.",
+    "details": {
+      "type": "docker",
+      "endpoint": "http://127.0.0.1:8085"
+    }
+  },
+  {
+    "id": "log_1791444184057_4b624b",
+    "timestamp": "2026-10-08T07:23:04.057471+00:00",
+    "event_type": "MODEL_SUBMITTED",
+    "hospital_id": "sim_hospital_1",
+    "hospital_name": "Medico Life",
+    "description": "Permitted model weights update submitted by 'Medico Life'.",
+    "details": {
+      "update_id": "upd_1791444184_65e5",
+      "loss": 0.2141,
+      "dice": 0.8829
+    }
+  },
+  {
+    "id": "log_1791444181667_352faf",
+    "timestamp": "2026-10-08T07:23:01.667629+00:00",
+    "event_type": "TRAINING_COMPLETED",
+    "hospital_id": "sim_hospital_1",
+    "hospital_name": "Medico Life",
+    "description": "Local training completed at 'Medico Life'. Loss: 0.2141, Dice: 0.8829.",
+    "details": {
+      "loss": 0.2141,
+      "dice": 0.8829
+    }
+  },
+  {
+    "id": "log_1791444180660_1e0359",
+    "timestamp": "2026-10-08T07:23:00.660672+00:00",
+    "event_type": "TRAINING_STARTED",
+    "hospital_id": "sim_hospital_1",
+    "hospital_name": "Medico Life",
+    "description": "Local training started at 'Medico Life' (1 epoch(s)).",
+    "details": {}
+  },
+  {
+    "id": "log_1791444176279_0ba94a",
+    "timestamp": "2026-10-08T07:22:56.282018+00:00",
+    "event_type": "DATASET_CONFIGURED",
+    "hospital_id": "sim_hospital_1",
+    "hospital_name": "Medico Life",
+    "description": "Configured DEMO/SYNTHETIC dataset (3 volumes) for 'Medico Life'.",
+    "details": {
+      "mode": "demo",
+      "samples": 3
+    }
+  },
+  {
+    "id": "log_1791443332470_fcdac1",
+    "timestamp": "2026-10-08T07:08:52.470705+00:00",
+    "event_type": "HOSPITAL_REMOVED",
+    "hospital_id": "hosp_3cecb8",
+    "hospital_name": "Gangamma Multispeciality Hospital",
+    "description": "Hospital 'Gangamma Multispeciality Hospital' was removed from central registry.",
+    "details": {}
+  },
+  {
+    "id": "log_1791443294590_234ff8",
+    "timestamp": "2026-10-08T07:08:14.590511+00:00",
+    "event_type": "HOSPITAL_CONNECTED",
+    "hospital_id": "hosp_3cecb8",
+    "hospital_name": "Gangamma Multispeciality Hospital",
+    "description": "Secure connection established with 'Gangamma Multispeciality Hospital'.",
+    "details": {}
+  },
+  {
+    "id": "log_1791443292287_30109f",
+    "timestamp": "2026-10-08T07:08:12.287970+00:00",
+    "event_type": "HOSPITAL_CONNECTED",
+    "hospital_id": "sim_hospital_1",
+    "hospital_name": "Medico Life",
+    "description": "Secure connection established with 'Medico Life'.",
+    "details": {}
+  },
+  {
+    "id": "log_1791443284372_f2538d",
+    "timestamp": "2026-10-08T07:08:04.372090+00:00",
+    "event_type": "HOSPITAL_REGISTERED",
+    "hospital_id": "hosp_3cecb8",
+    "hospital_name": "Gangamma Multispeciality Hospital",
+    "description": "Hospital 'Gangamma Multispeciality Hospital' (hosp_3cecb8) was registered as remote.",
+    "details": {
+      "type": "remote",
+      "endpoint": "http://127.0.0.1:8081"
+    }
+  },
+  {
+    "id": "log_1791442988578_f7a5dc",
+    "timestamp": "2026-10-08T07:03:08.578132+00:00",
+    "event_type": "FEDERATION_COMPLETED",
+    "hospital_id": null,
+    "hospital_name": null,
+    "description": "Federation Round 3 complete (FedAvg). Produced Global Model v3 with 1 hospital(s).",
+    "details": {
+      "strategy": "FedAvg",
+      "new_version": 3,
+      "participants": [
+        "Medico Life"
+      ],
+      "loss": 0.2757,
+      "dice": 0.9012
+    }
+  },
+  {
+    "id": "log_1791442961369_ada8c2",
+    "timestamp": "2026-10-08T07:02:41.369010+00:00",
+    "event_type": "MODEL_SUBMITTED",
+    "hospital_id": "sim_hospital_1",
+    "hospital_name": "Medico Life",
+    "description": "Permitted model weights update submitted by 'Medico Life'.",
+    "details": {
+      "update_id": "upd_1791442961_3a6f",
+      "loss": 0.2757,
+      "dice": 0.9012
+    }
+  },
+  {
+    "id": "log_1791442956359_d53a2b",
+    "timestamp": "2026-10-08T07:02:36.359636+00:00",
+    "event_type": "TRAINING_COMPLETED",
+    "hospital_id": "sim_hospital_1",
+    "hospital_name": "Medico Life",
+    "description": "Local training completed at 'Medico Life'. Loss: 0.2757, Dice: 0.9012.",
+    "details": {
+      "loss": 0.2757,
+      "dice": 0.9012
+    }
+  },
+  {
+    "id": "log_1791442955349_d7cb52",
+    "timestamp": "2026-10-08T07:02:35.349483+00:00",
+    "event_type": "TRAINING_STARTED",
+    "hospital_id": "sim_hospital_1",
+    "hospital_name": "Medico Life",
+    "description": "Local training started at 'Medico Life' (1 epoch(s)).",
+    "details": {}
+  },
+  {
+    "id": "log_1791442946880_45ba06",
+    "timestamp": "2026-10-08T07:02:26.880021+00:00",
+    "event_type": "HOSPITAL_APPROVED",
+    "hospital_id": "sim_hospital_1",
+    "hospital_name": "Medico Life",
+    "description": "Hospital 'Medico Life' was approved by administrator.",
+    "details": {}
+  },
+  {
+    "id": "log_1791442930750_cc3331",
+    "timestamp": "2026-10-08T07:02:10.750869+00:00",
+    "event_type": "APPROVAL_REQUESTED",
+    "hospital_id": "sim_hospital_1",
+    "hospital_name": "Medico Life",
+    "description": "Hospital 'Medico Life' requested federation approval from central hub.",
+    "details": {}
+  },
+  {
+    "id": "log_1791442923856_c5f70c",
+    "timestamp": "2026-10-08T07:02:03.856237+00:00",
+    "event_type": "MODEL_INITIALIZED",
+    "hospital_id": "sim_hospital_1",
+    "hospital_name": "Medico Life",
+    "description": "Global Model (v2) instantiated in 'Medico Life' environment.",
+    "details": {
+      "global_version": 2
+    }
+  },
+  {
+    "id": "log_1791442912181_95f7e3",
+    "timestamp": "2026-10-08T07:01:52.181708+00:00",
+    "event_type": "DATASET_CONFIGURED",
+    "hospital_id": "sim_hospital_1",
+    "hospital_name": "Medico Life",
+    "description": "Configured DEMO/SYNTHETIC dataset (3 volumes) for 'Medico Life'.",
+    "details": {
+      "mode": "demo",
+      "samples": 3
+    }
+  },
+  {
+    "id": "log_1791442898213_986629",
+    "timestamp": "2026-10-08T07:01:38.213283+00:00",
+    "event_type": "HOSPITAL_REGISTERED",
+    "hospital_id": "sim_hospital_1",
+    "hospital_name": "Medico Life",
+    "description": "Hospital 'Medico Life' (sim_hospital_1) was registered as docker.",
+    "details": {
+      "type": "docker",
+      "endpoint": "http://127.0.0.1:8081"
+    }
+  },
+  {
+    "id": "log_1791442803235_e55af4",
+    "timestamp": "2026-10-08T07:00:03.235407+00:00",
+    "event_type": "HOSPITAL_REMOVED",
+    "hospital_id": "mayo_neuro",
+    "hospital_name": "Mayo Clinic Neuro",
+    "description": "Hospital 'Mayo Clinic Neuro' was removed from central registry.",
+    "details": {}
+  },
+  {
+    "id": "log_1791442748700_192aaf",
+    "timestamp": "2026-10-08T06:59:08.707416+00:00",
+    "event_type": "EXECUTION_MODE_CHANGED",
+    "hospital_id": null,
+    "hospital_name": null,
+    "description": "Execution mode set to Docker Remote Hospital Simulation.",
+    "details": {
+      "mode": "docker"
+    }
+  },
+  {
+    "id": "log_1791441761400_0a172b",
+    "timestamp": "2026-10-08T06:42:41.400571+00:00",
+    "event_type": "FEDERATION_COMPLETED",
+    "hospital_id": null,
+    "hospital_name": null,
+    "description": "Federation Round 2 complete (FedAvg). Produced Global Model v2 with 1 hospital(s).",
+    "details": {
+      "strategy": "FedAvg",
+      "new_version": 2,
+      "participants": [
+        "Mayo Clinic Neuro"
+      ],
+      "loss": 0.2822,
+      "dice": 0.9223
+    }
+  },
+  {
+    "id": "log_1791441751548_61196c",
+    "timestamp": "2026-10-08T06:42:31.548669+00:00",
+    "event_type": "MODEL_SUBMITTED",
+    "hospital_id": "mayo_neuro",
+    "hospital_name": "Mayo Clinic Neuro",
+    "description": "Permitted model weights update submitted by 'Mayo Clinic Neuro'.",
+    "details": {
+      "update_id": "upd_1791441751_7da3",
+      "loss": 0.2822,
+      "dice": 0.9223
+    }
+  },
+  {
+    "id": "log_1791441751536_ba197b",
+    "timestamp": "2026-10-08T06:42:31.536578+00:00",
+    "event_type": "TRAINING_COMPLETED",
+    "hospital_id": "mayo_neuro",
+    "hospital_name": "Mayo Clinic Neuro",
+    "description": "Local training completed at 'Mayo Clinic Neuro'. Loss: 0.2822, Dice: 0.9223.",
+    "details": {
+      "loss": 0.2822,
+      "dice": 0.9223
+    }
+  },
+  {
+    "id": "log_1791441750532_a9ca1a",
+    "timestamp": "2026-10-08T06:42:30.532343+00:00",
+    "event_type": "TRAINING_STARTED",
+    "hospital_id": "mayo_neuro",
+    "hospital_name": "Mayo Clinic Neuro",
+    "description": "Local training started at 'Mayo Clinic Neuro' (1 epoch(s)).",
+    "details": {}
+  },
+  {
+    "id": "log_1791441750521_a4485c",
+    "timestamp": "2026-10-08T06:42:30.521130+00:00",
+    "event_type": "HOSPITAL_APPROVED",
+    "hospital_id": "mayo_neuro",
+    "hospital_name": "Mayo Clinic Neuro",
+    "description": "Hospital 'Mayo Clinic Neuro' was approved by administrator.",
+    "details": {}
+  },
+  {
+    "id": "log_1791441750509_633310",
+    "timestamp": "2026-10-08T06:42:30.509767+00:00",
+    "event_type": "APPROVAL_REQUESTED",
+    "hospital_id": "mayo_neuro",
+    "hospital_name": "Mayo Clinic Neuro",
+    "description": "Hospital 'Mayo Clinic Neuro' requested federation approval from central hub.",
+    "details": {}
+  },
+  {
+    "id": "log_1791441750496_771433",
+    "timestamp": "2026-10-08T06:42:30.496689+00:00",
+    "event_type": "MODEL_INITIALIZED",
+    "hospital_id": "mayo_neuro",
+    "hospital_name": "Mayo Clinic Neuro",
+    "description": "Global Model (v1) instantiated in 'Mayo Clinic Neuro' environment.",
+    "details": {
+      "global_version": 1
+    }
+  },
+  {
+    "id": "log_1791441750483_371d30",
+    "timestamp": "2026-10-08T06:42:30.483341+00:00",
+    "event_type": "DATASET_CONFIGURED",
+    "hospital_id": "mayo_neuro",
+    "hospital_name": "Mayo Clinic Neuro",
+    "description": "Configured DEMO/SYNTHETIC dataset (3 volumes) for 'Mayo Clinic Neuro'.",
+    "details": {
+      "mode": "demo",
+      "samples": 3
+    }
+  },
+  {
+    "id": "log_1791441704204_edf31d",
+    "timestamp": "2026-10-08T06:41:44.204624+00:00",
+    "event_type": "EXECUTION_MODE_CHANGED",
+    "hospital_id": null,
+    "hospital_name": null,
+    "description": "Execution mode set to Standby / Native Mode.",
+    "details": {
+      "mode": "standby"
+    }
+  },
+  {
+    "id": "log_1791441703826_911642",
+    "timestamp": "2026-10-08T06:41:43.826683+00:00",
+    "event_type": "EXECUTION_MODE_CHANGED",
+    "hospital_id": null,
+    "hospital_name": null,
+    "description": "Execution mode set to Docker Remote Hospital Simulation.",
+    "details": {
+      "mode": "docker"
+    }
+  },
+  {
+    "id": "log_1791436026432_f51709",
+    "timestamp": "2026-10-08T05:07:06.432516+00:00",
+    "event_type": "DATASET_CONFIGURED",
+    "hospital_id": "mayo_neuro",
+    "hospital_name": "Mayo Clinic Neuro",
+    "description": "Configured DEMO/SYNTHETIC dataset (3 volumes) for 'Mayo Clinic Neuro'.",
+    "details": {
+      "mode": "demo",
+      "samples": 3
+    }
+  },
+  {
+    "id": "log_1791436025745_47d5a7",
+    "timestamp": "2026-10-08T05:07:05.745222+00:00",
+    "event_type": "DATASET_CONFIGURED",
+    "hospital_id": "mayo_neuro",
+    "hospital_name": "Mayo Clinic Neuro",
+    "description": "Configured DEMO/SYNTHETIC dataset (3 volumes) for 'Mayo Clinic Neuro'.",
+    "details": {
+      "mode": "demo",
+      "samples": 3
+    }
+  },
+  {
+    "id": "log_1791436020376_0f4b39",
+    "timestamp": "2026-10-08T05:07:00.378797+00:00",
+    "event_type": "DATASET_CONFIGURED",
+    "hospital_id": "mayo_neuro",
+    "hospital_name": "Mayo Clinic Neuro",
+    "description": "Configured DEMO/SYNTHETIC dataset (3 volumes) for 'Mayo Clinic Neuro'.",
+    "details": {
+      "mode": "demo",
+      "samples": 3
+    }
+  },
+  {
+    "id": "log_1791433115782_eaf5e2",
+    "timestamp": "2026-10-08T04:18:35.782983+00:00",
+    "event_type": "FEDERATION_COMPLETED",
+    "hospital_id": null,
+    "hospital_name": null,
+    "description": "Federation Round 1 complete (FedAvg). Produced Global Model v1 with 1 hospital(s).",
+    "details": {
+      "strategy": "FedAvg",
+      "new_version": 1,
+      "participants": [
+        "Mayo Clinic Neuro"
+      ],
+      "loss": 0.2121,
+      "dice": 0.8958
+    }
+  },
+  {
+    "id": "log_1791433100864_3564dd",
+    "timestamp": "2026-10-08T04:18:20.864052+00:00",
+    "event_type": "MODEL_SUBMITTED",
+    "hospital_id": "mayo_neuro",
+    "hospital_name": "Mayo Clinic Neuro",
+    "description": "Permitted model weights update submitted by 'Mayo Clinic Neuro'.",
+    "details": {
+      "update_id": "upd_1791433100_0c68",
+      "loss": 0.2121,
+      "dice": 0.8958
+    }
+  },
+  {
+    "id": "log_1791433100856_fe6e31",
+    "timestamp": "2026-10-08T04:18:20.856690+00:00",
+    "event_type": "TRAINING_COMPLETED",
+    "hospital_id": "mayo_neuro",
+    "hospital_name": "Mayo Clinic Neuro",
+    "description": "Local training completed at 'Mayo Clinic Neuro'. Loss: 0.2121, Dice: 0.8958.",
+    "details": {
+      "loss": 0.2121,
+      "dice": 0.8958
+    }
+  },
+  {
+    "id": "log_1791433099854_315da4",
+    "timestamp": "2026-10-08T04:18:19.854989+00:00",
+    "event_type": "TRAINING_STARTED",
+    "hospital_id": "mayo_neuro",
+    "hospital_name": "Mayo Clinic Neuro",
+    "description": "Local training started at 'Mayo Clinic Neuro' (1 epoch(s)).",
+    "details": {}
+  },
+  {
+    "id": "log_1791433099850_e8cb46",
+    "timestamp": "2026-10-08T04:18:19.850600+00:00",
+    "event_type": "HOSPITAL_APPROVED",
+    "hospital_id": "mayo_neuro",
+    "hospital_name": "Mayo Clinic Neuro",
+    "description": "Hospital 'Mayo Clinic Neuro' was approved by administrator.",
+    "details": {}
+  },
+  {
+    "id": "log_1791433099838_411df2",
+    "timestamp": "2026-10-08T04:18:19.838901+00:00",
+    "event_type": "APPROVAL_REQUESTED",
+    "hospital_id": "mayo_neuro",
+    "hospital_name": "Mayo Clinic Neuro",
+    "description": "Hospital 'Mayo Clinic Neuro' requested federation approval from central hub.",
+    "details": {}
+  },
+  {
+    "id": "log_1791433099835_544d02",
+    "timestamp": "2026-10-08T04:18:19.835300+00:00",
+    "event_type": "MODEL_INITIALIZED",
+    "hospital_id": "mayo_neuro",
+    "hospital_name": "Mayo Clinic Neuro",
+    "description": "Global Model (v0) instantiated in 'Mayo Clinic Neuro' environment.",
+    "details": {
+      "global_version": 0
+    }
+  },
+  {
+    "id": "log_1791433099831_88c56f",
+    "timestamp": "2026-10-08T04:18:19.831139+00:00",
+    "event_type": "DATASET_CONFIGURED",
+    "hospital_id": "mayo_neuro",
+    "hospital_name": "Mayo Clinic Neuro",
+    "description": "Configured DEMO/SYNTHETIC dataset (3 volumes) for 'Mayo Clinic Neuro'.",
+    "details": {
+      "mode": "demo",
+      "samples": 3
+    }
+  },
+  {
+    "id": "log_1791433098126_f8abb3",
+    "timestamp": "2026-10-08T04:18:18.126577+00:00",
+    "event_type": "HOSPITAL_REGISTERED",
+    "hospital_id": "mayo_neuro",
+    "hospital_name": "Mayo Clinic Neuro",
+    "description": "Hospital 'Mayo Clinic Neuro' (mayo_neuro) was registered as docker.",
+    "details": {
+      "type": "docker",
+      "endpoint": "http://127.0.0.1:8081"
+    }
+  }
+]

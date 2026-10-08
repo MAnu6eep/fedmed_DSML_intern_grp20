@@ -36,7 +36,7 @@ from fedmed.config.experiment import (
     ExperimentConfig,
 )
 
-from fedmed.data.partitioner import partition_dirichlet
+from fedmed.data.partitioner import partition_dirichlet, partition_iid
 
 from experiments.scaffold_convergence_comparison import (
     NUM_CLIENTS,
@@ -45,18 +45,29 @@ from experiments.scaffold_convergence_comparison import (
 
 
 # ---------------------------------------------------------------------------
-# Supported configuration fields
+# Supported configuration fields and strategies
 # ---------------------------------------------------------------------------
 
 SUPPORTED_CONFIG_KEYS = {
     "strategy",
+    "rounds",
     "num_rounds",
     "local_epochs",
     "learning_rate",
     "batch_size",
-    "proximal_mu",
+    "partition",
     "dataset",
+    "mu",
+    "proximal_mu",
+    "dp",
 }
+
+SUPPORTED_STRATEGIES = [
+    "centralized",
+    "fedavg",
+    "fedprox",
+    "scaffold",
+]
 
 SUPPORTED_DATASET_KEYS = {
     "name",
@@ -88,11 +99,11 @@ def parse_args() -> argparse.Namespace:
 
 
 # ---------------------------------------------------------------------------
-# YAML loading
+# YAML loading & normalization
 # ---------------------------------------------------------------------------
 
 def load_yaml_config(path: Path) -> Dict[str, Any]:
-    """Load and validate the YAML configuration."""
+    """Load, normalize, and validate the YAML configuration."""
 
     if not path.exists():
         raise FileNotFoundError(
@@ -128,8 +139,51 @@ def load_yaml_config(path: Path) -> Dict[str, Any]:
             "Configuration root must be a YAML mapping."
         )
 
-    unknown_keys = set(data) - SUPPORTED_CONFIG_KEYS
+    # 1. Strategy validation
+    strategy_raw = data.get("strategy")
+    if not strategy_raw:
+        raise ValueError("Configuration missing required field: 'strategy'.")
 
+    strategy = str(strategy_raw).strip().lower()
+    if strategy not in SUPPORTED_STRATEGIES:
+        supported_list = "\n".join(f"- {s}" for s in SUPPORTED_STRATEGIES)
+        raise ValueError(
+            f"Unsupported strategy: {strategy_raw}\n"
+            f"Supported strategies:\n{supported_list}"
+        )
+    data["strategy"] = strategy
+
+    # 2. Check field name aliases
+    if "rounds" in data and "num_rounds" not in data:
+        data["num_rounds"] = data.pop("rounds")
+
+    if "mu" in data and "proximal_mu" not in data:
+        data["proximal_mu"] = data.pop("mu")
+
+    # Validate FedProx mu parameter
+    if strategy == "fedprox":
+        mu = data.get("proximal_mu", 0.01)
+        if mu is None or mu < 0:
+            raise ValueError("FedProx requires a non-negative 'mu' parameter (e.g., mu: 0.01).")
+        data["proximal_mu"] = mu
+
+    # Normalize partition mapping to dataset config structure
+    if "partition" in data and "dataset" not in data:
+        partition_val = data.pop("partition")
+        if isinstance(partition_val, dict):
+            p_type = partition_val.get("type", "non_iid")
+            p_alpha = partition_val.get("alpha", 0.5)
+        else:
+            p_type = str(partition_val)
+            p_alpha = 0.5
+        data["dataset"] = {
+            "name": "brats",
+            "partition": p_type,
+            "dirichlet_alpha": p_alpha,
+            "seed": 42,
+        }
+
+    unknown_keys = set(data) - SUPPORTED_CONFIG_KEYS
     if unknown_keys:
         raise ValueError(
             "Unsupported configuration field(s): "
@@ -140,7 +194,7 @@ def load_yaml_config(path: Path) -> Dict[str, Any]:
 
 
 # ---------------------------------------------------------------------------
-# Experiment configuration
+# Experiment configuration builder
 # ---------------------------------------------------------------------------
 
 def build_experiment_config(
@@ -178,7 +232,7 @@ def build_experiment_config(
     experiment_fields = {
         key: value
         for key, value in raw_config.items()
-        if key != "dataset"
+        if key not in {"dataset", "dp"}
     }
 
     return ExperimentConfig(
@@ -212,15 +266,8 @@ def set_reproducibility(seed: int) -> None:
 def create_partitions(
     config: ExperimentConfig,
 ) -> Dict[str, list]:
-    """Create the deterministic hospital partition."""
+    """Create the hospital partition (IID or Non-IID Dirichlet)."""
 
-    if config.dataset.partition != "non_iid":
-        raise ValueError(
-            "The common runner currently supports only "
-            "'non_iid' partitioning."
-        )
-
-    # Current synthetic FedMed experiment dataset.
     volumes = [
         f"volume_{index:02d}"
         for index in range(12)
@@ -232,13 +279,27 @@ def create_partitions(
         2, 2, 2, 2,
     ]
 
-    return partition_dirichlet(
-        volumes,
-        labels,
-        num_clients=NUM_CLIENTS,
-        alpha=config.dataset.dirichlet_alpha,
-        seed=config.dataset.seed,
-    )
+    p_type = config.dataset.partition.lower()
+
+    if p_type in {"iid", "uniform"}:
+        return partition_iid(
+            volumes,
+            num_clients=NUM_CLIENTS,
+            seed=config.dataset.seed,
+        )
+    elif p_type in {"non_iid", "dirichlet"}:
+        return partition_dirichlet(
+            volumes,
+            labels,
+            num_clients=NUM_CLIENTS,
+            alpha=config.dataset.dirichlet_alpha,
+            seed=config.dataset.seed,
+        )
+    else:
+        raise ValueError(
+            f"Unsupported partition type: '{config.dataset.partition}'. "
+            "Supported partition types: 'iid', 'non_iid'."
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -250,28 +311,79 @@ def run_from_config(
 ) -> Dict[str, Any]:
     """Initialize and run the configured experiment."""
 
-    set_reproducibility(
-        config.dataset.seed
-    )
+    set_reproducibility(config.dataset.seed)
+    partitions = create_partitions(config)
 
-    partitions = create_partitions(
-        config
-    )
+    if config.strategy == "centralized":
+        from fedmed.core.model import get_model
+        from fedmed.core.training import run_local_training
+        from fedmed.metrics.benchmark_framework import SystemMonitor, record_and_export_benchmark
+        from torch.utils.data import DataLoader, Dataset
 
-    result = run_experiment(
-        config,
-        partitions,
-    )
+        class SyntheticCentralizedDataset(Dataset):
+            def __len__(self):
+                return 4
+
+            def __getitem__(self, index):
+                image = torch.full((4, 32, 32, 16), 0.5, dtype=torch.float32)
+                label = torch.zeros((1, 32, 32, 16), dtype=torch.float32)
+                label[:, 4:12, 4:12, 2:8] = 1.0
+                return {"image": image, "label": label}
+
+        model = get_model(in_channels=4, out_channels=1)
+        loader = DataLoader(SyntheticCentralizedDataset(), batch_size=config.batch_size)
+
+        with SystemMonitor() as monitor:
+            metrics = run_local_training(
+                model=model,
+                train_loader=loader,
+                val_loader=loader,
+                epochs=config.local_epochs,
+                learning_rate=config.learning_rate,
+                device=torch.device("cpu"),
+            )
+
+        combined_metrics = {
+            "dice": metrics.get("val_dice", 0.0),
+            "hd95": metrics.get("val_hd95", 20.0),
+            "execution_time_seconds": monitor.elapsed_time,
+            "vram_peak_mb": monitor.vram_peak_mb,
+            "vram_current_mb": monitor.vram_current_mb,
+            "cuda_available": monitor.cuda_available,
+        }
+
+        record_and_export_benchmark(
+            strategy_name="Centralized",
+            metrics=combined_metrics,
+            round_or_epoch=config.local_epochs,
+        )
+
+        history_entry = {
+            "round": 1,
+            "train_loss": metrics["train_loss"],
+            "global_loss": metrics["val_loss"],
+            "val_loss": metrics["val_loss"],
+            "val_dice": metrics["val_dice"],
+            "execution_time_seconds": monitor.elapsed_time,
+            "vram_peak_mb": monitor.vram_peak_mb,
+            "failures": 0,
+        }
+
+        result = {
+            "distribution": config.dataset.partition,
+            "strategy": "Centralized",
+            "history": [history_entry],
+        }
+    else:
+        result = run_experiment(config, partitions)
 
     if result is None:
         result = {}
 
     if not isinstance(result, dict):
-        raise TypeError(
-            "Experiment must return a dictionary."
-        )
+        result = {"result": result}
 
-    # Store the exact configuration used.
+    # Store exact configuration used.
     result["config"] = {
         "strategy": config.strategy,
         "num_rounds": config.num_rounds,
@@ -286,17 +398,12 @@ def run_from_config(
         "dataset": {
             "name": config.dataset.name,
             "partition": config.dataset.partition,
-            "dirichlet_alpha": (
-                config.dataset.dirichlet_alpha
-            ),
+            "dirichlet_alpha": config.dataset.dirichlet_alpha,
             "seed": config.dataset.seed,
         },
     }
 
-    # Store the exact partition used so the experiment
-    # can be reproduced later.
     result["partitions"] = partitions
-
     return result
 
 
@@ -310,31 +417,13 @@ def save_result(
 ) -> Path:
     """Save the experiment result as JSON."""
 
-    output_dir = (
-        PROJECT_ROOT
-        / "experiments"
-        / "outputs"
-    )
+    output_dir = PROJECT_ROOT / "experiments" / "outputs"
+    output_dir.mkdir(parents=True, exist_ok=True)
 
-    output_dir.mkdir(
-        parents=True,
-        exist_ok=True,
-    )
+    output_path = output_dir / f"{config_path.stem}_result.json"
 
-    output_path = (
-        output_dir
-        / f"{config_path.stem}_result.json"
-    )
-
-    with output_path.open(
-        "w",
-        encoding="utf-8",
-    ) as file:
-        json.dump(
-            result,
-            file,
-            indent=2,
-        )
+    with output_path.open("w", encoding="utf-8") as file:
+        json.dump(result, file, indent=2, default=str)
 
     return output_path
 
@@ -349,82 +438,34 @@ def main() -> int:
     args = parse_args()
 
     try:
-        raw_config = load_yaml_config(
-            args.config
-        )
-
-        config = build_experiment_config(
-            raw_config
-        )
+        raw_config = load_yaml_config(args.config)
+        config = build_experiment_config(raw_config)
 
         print("=" * 60)
         print("FedMed Common Experiment Runner")
         print("=" * 60)
-
-        print(
-            f"Config   : {args.config}"
-        )
-
-        print(
-            f"Strategy : {config.strategy}"
-        )
-
-        print(
-            f"Rounds   : {config.num_rounds}"
-        )
-
-        print(
-            f"Epochs   : {config.local_epochs}"
-        )
-
-        print(
-            f"LR       : {config.learning_rate}"
-        )
-
-        print(
-            f"Batch    : {config.batch_size}"
-        )
-
-        print(
-            f"Dataset  : {config.dataset.name}"
-        )
-
-        print(
-            f"Partition: {config.dataset.partition}"
-        )
-
-        print(
-            f"Seed     : {config.dataset.seed}"
-        )
+        print(f"Config   : {args.config}")
+        print(f"Strategy : {config.strategy}")
+        print(f"Rounds   : {config.num_rounds}")
+        print(f"Epochs   : {config.local_epochs}")
+        print(f"LR       : {config.learning_rate}")
+        print(f"Batch    : {config.batch_size}")
+        print(f"Dataset  : {config.dataset.name}")
+        print(f"Partition: {config.dataset.partition}")
+        print(f"Seed     : {config.dataset.seed}")
 
         if config.strategy == "fedprox":
-            print(
-                f"Mu       : {config.proximal_mu}"
-            )
+            print(f"Mu       : {config.proximal_mu}")
 
         print("=" * 60)
 
-        result = run_from_config(
-            config
-        )
-
-        output_path = save_result(
-            result,
-            args.config,
-        )
+        result = run_from_config(config)
+        output_path = save_result(result, args.config)
 
         print()
-        print(
-            "[SUCCESS] Experiment completed."
-        )
-
-        print(
-            f"Strategy : {config.strategy}"
-        )
-
-        print(
-            f"Result   : {output_path}"
-        )
+        print("[SUCCESS] Experiment completed.")
+        print(f"Strategy : {config.strategy}")
+        print(f"Result   : {output_path}")
 
         return 0
 
@@ -433,17 +474,11 @@ def main() -> int:
         ValueError,
         TypeError,
         KeyError,
+        ImportError,
     ) as exc:
-
-        print(
-            f"[ERROR] {exc}",
-            file=sys.stderr,
-        )
-
+        print(f"[ERROR] {exc}", file=sys.stderr)
         return 2
 
 
 if __name__ == "__main__":
-    raise SystemExit(
-        main()
-    )
+    raise SystemExit(main())

@@ -1,0 +1,15 @@
+node:
+  id: "zenith_hospital"
+  name: "Zenith Hospital"
+  port: 8087
+  grpc_port: 9087
+server:
+  host: "127.0.0.1"
+  port: 8080
+data:
+  data_dir: "hospitals/zenith_hospital/data"
+  batch_size: 2
+  local_epochs: 1
+privacy:
+  secagg_enabled: true
+  dp_enabled: false

@@ -4,25 +4,25 @@
     "history": [
       {
         "round": 1,
-        "train_loss": 1.4277576208114624,
-        "val_loss": 1.2682776947816212,
+        "train_loss": 1.4277573333333333,
+        "val_loss": 1.2680446666666667,
         "parameter_delta": 0.0,
         "participants": 3,
         "failures": 0
       },
       {
         "round": 2,
-        "train_loss": 1.4145541886488597,
-        "val_loss": 1.2688554227352142,
-        "parameter_delta": 1.2363389438673558,
+        "train_loss": 1.4145543333333332,
+        "val_loss": 1.268527,
+        "parameter_delta": 1.2362565862040258,
         "participants": 3,
         "failures": 0
       },
       {
         "round": 3,
-        "train_loss": 1.400894542535146,
-        "val_loss": 1.2686452567577362,
-        "parameter_delta": 0.8052448655297698,
+        "train_loss": 1.4008946666666666,
+        "val_loss": 1.2680003333333334,
+        "parameter_delta": 0.8051985878565009,
         "participants": 3,
         "failures": 0
       }
@@ -33,25 +33,25 @@
     "history": [
       {
         "round": 1,
-        "train_loss": 1.4277590314547222,
-        "val_loss": 1.2681504885355632,
+        "train_loss": 1.4277593333333334,
+        "val_loss": 1.268156,
         "parameter_delta": 0.0,
         "participants": 3,
         "failures": 0
       },
       {
         "round": 2,
-        "train_loss": 1.4145559668540955,
-        "val_loss": 1.268806238969167,
-        "parameter_delta": 1.236324060671233,
+        "train_loss": 1.4145563333333335,
+        "val_loss": 1.268805,
+        "parameter_delta": 1.2363023346944075,
         "participants": 3,
         "failures": 0
       },
       {
         "round": 3,
-        "train_loss": 1.4008964995543163,
-        "val_loss": 1.2684850692749023,
-        "parameter_delta": 0.8052392264499957,
+        "train_loss": 1.400896666666667,
+        "val_loss": 1.2684883333333332,
+        "parameter_delta": 0.8052037405780454,
         "participants": 3,
         "failures": 0
       }
